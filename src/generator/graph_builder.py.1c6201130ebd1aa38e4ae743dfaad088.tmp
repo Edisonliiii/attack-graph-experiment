@@ -34,7 +34,6 @@ def read_graph():
         font_size=10)
       print(os.path.join(path, filename))
       plt.show()
-
 def store_graph(G: nx.Graph):
   """
     Store graph as file
@@ -150,6 +149,7 @@ def struct_graph(*layer_sizes):
           G.add_edges_from([(node, v)])
   return G
 
+
 print("----networkx----")
 layer_sizes = [5,4,6,4,4,3,1]
 # layer_color = ["gold", "violet", "blue", "black", "red"]
@@ -177,4 +177,5 @@ print("[[All leaves]]: ",find_all_leaves(G))
 # store graph
 store_graph(G)
 plt.show()
+
 read_graph()

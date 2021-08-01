@@ -137,11 +137,15 @@ graph [
   ]
   edge [
     source 0
-    target 8
+    target 9
   ]
   edge [
     source 0
-    target 6
+    target 18
+  ]
+  edge [
+    source 1
+    target 8
   ]
   edge [
     source 1
@@ -149,55 +153,51 @@ graph [
   ]
   edge [
     source 2
-    target 7
-  ]
-  edge [
-    source 2
-    target 8
-  ]
-  edge [
-    source 3
-    target 22
-  ]
-  edge [
-    source 3
     target 5
   ]
   edge [
+    source 3
+    target 8
+  ]
+  edge [
     source 4
-    target 9
+    target 5
   ]
   edge [
     source 5
     target 9
   ]
   edge [
-    source 6
-    target 22
+    source 5
+    target 12
   ]
   edge [
     source 6
-    target 20
+    target 12
   ]
   edge [
-    source 7
-    target 10
-  ]
-  edge [
-    source 7
+    source 6
     target 14
   ]
   edge [
+    source 7
+    target 12
+  ]
+  edge [
     source 8
-    target 11
+    target 25
+  ]
+  edge [
+    source 8
+    target 15
   ]
   edge [
     source 9
-    target 16
+    target 26
   ]
   edge [
     source 10
-    target 17
+    target 15
   ]
   edge [
     source 11
@@ -205,43 +205,55 @@ graph [
   ]
   edge [
     source 12
+    target 26
+  ]
+  edge [
+    source 12
+    target 17
+  ]
+  edge [
+    source 13
     target 15
   ]
   edge [
     source 13
-    target 19
-  ]
-  edge [
-    source 13
-    target 24
+    target 18
   ]
   edge [
     source 14
-    target 16
+    target 15
+  ]
+  edge [
+    source 14
+    target 17
   ]
   edge [
     source 15
-    target 26
+    target 21
   ]
   edge [
     source 16
-    target 24
+    target 20
+  ]
+  edge [
+    source 17
+    target 22
   ]
   edge [
     source 17
     target 21
   ]
   edge [
-    source 17
-    target 22
-  ]
-  edge [
     source 18
     target 22
   ]
   edge [
+    source 18
+    target 21
+  ]
+  edge [
     source 19
-    target 24
+    target 26
   ]
   edge [
     source 19
@@ -249,7 +261,11 @@ graph [
   ]
   edge [
     source 20
-    target 23
+    target 24
+  ]
+  edge [
+    source 20
+    target 25
   ]
   edge [
     source 21
@@ -257,11 +273,11 @@ graph [
   ]
   edge [
     source 22
-    target 24
+    target 23
   ]
   edge [
     source 22
-    target 25
+    target 24
   ]
   edge [
     source 23

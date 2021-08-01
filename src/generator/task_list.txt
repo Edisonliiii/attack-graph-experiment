@@ -2,3 +2,14 @@
 2. python build data feed to neo4j using json/cvs and import to neo4j
 or python build neo4j directly
 3. once neo4j has right data schema, bloodhound could read it and render it
+
+
+
+
+
+[business case]
+
+windows active directory
+1. tenable
+
+linux active directory: Samba

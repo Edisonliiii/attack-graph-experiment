@@ -141,23 +141,19 @@ graph [
   ]
   edge [
     source 0
-    target 6
+    target 5
   ]
   edge [
     source 1
-    target 6
-  ]
-  edge [
-    source 2
     target 7
   ]
   edge [
     source 2
-    target 8
+    target 23
   ]
   edge [
-    source 3
-    target 22
+    source 2
+    target 7
   ]
   edge [
     source 3
@@ -165,99 +161,99 @@ graph [
   ]
   edge [
     source 4
-    target 9
+    target 6
   ]
   edge [
     source 5
+    target 11
+  ]
+  edge [
+    source 6
     target 9
-  ]
-  edge [
-    source 6
-    target 22
-  ]
-  edge [
-    source 6
-    target 20
-  ]
-  edge [
-    source 7
-    target 10
   ]
   edge [
     source 7
     target 14
   ]
   edge [
+    source 7
+    target 17
+  ]
+  edge [
     source 8
-    target 11
+    target 17
+  ]
+  edge [
+    source 8
+    target 12
   ]
   edge [
     source 9
-    target 16
-  ]
-  edge [
-    source 10
-    target 17
-  ]
-  edge [
-    source 11
-    target 17
-  ]
-  edge [
-    source 12
     target 15
   ]
   edge [
-    source 13
-    target 19
+    source 10
+    target 15
   ]
   edge [
-    source 13
-    target 24
-  ]
-  edge [
-    source 14
+    source 11
     target 16
   ]
   edge [
+    source 12
+    target 16
+  ]
+  edge [
+    source 13
+    target 25
+  ]
+  edge [
+    source 14
+    target 17
+  ]
+  edge [
+    source 14
+    target 15
+  ]
+  edge [
     source 15
-    target 26
+    target 21
   ]
   edge [
     source 16
-    target 24
+    target 20
+  ]
+  edge [
+    source 16
+    target 22
   ]
   edge [
     source 17
     target 21
   ]
   edge [
-    source 17
-    target 22
+    source 18
+    target 26
   ]
   edge [
     source 18
-    target 22
+    target 19
+  ]
+  edge [
+    source 19
+    target 25
   ]
   edge [
     source 19
     target 24
-  ]
-  edge [
-    source 19
-    target 23
   ]
   edge [
     source 20
-    target 23
+    target 24
   ]
   edge [
     source 21
-    target 23
-  ]
-  edge [
-    source 22
-    target 24
+    target 25
   ]
   edge [
     source 22
