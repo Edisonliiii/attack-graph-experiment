@@ -1,4 +1,5 @@
 # customized
+from networkx.algorithms.shortest_paths.generic import shortest_path
 from networkx.readwrite.gml import read_gml
 from nodes import Nodes
 from computer import Computer
@@ -33,7 +34,8 @@ def read_graph():
         width=0.1,
         font_size=10)
       print(os.path.join(path, filename))
-      plt.show()
+      # plt.show()
+
 def store_graph(G: nx.Graph):
   """
     Store graph as file
@@ -137,21 +139,56 @@ def struct_graph(*layer_sizes):
   # [Add Edges]
   for idx in range(len(layers)-1):
     for node in layers[idx]:
-      for j in range(random.choice(range(1, 3))):
-        if random.random() < 0.7: # 70% percent of time, bipartite
+      for j in range(random.choice(range(2, 5))):
+        if random.random() < 0.6: # 70% percent of time, bipartite
           v = random.choice(layers[idx+1])
         else: # 30% percent of time, jump
           # choose layer
-          l = random.choice(range(idx+1, len(layers)))
+          l = random.choice(range(idx+1, min(len(layers), idx+5)))
           # choose node
           v = random.choice(layers[l])
         if (G.has_edge(node, v) == False):
           G.add_edges_from([(node, v)])
   return G
 
+def algorithm_2(G: nx.Graph):
+  """
+    Security Cascade Graphs : algorithm 2 O((l^b)n)
+  """
+  # get all leaves
+  leaves = find_all_leaves(G)
+  dst = G.number_of_nodes() - 1
+  print(leaves)
+  # find the stp from all leaves
+  stps = []
+  for leaf in leaves:
+    shortest_path = nx.shortest_path(G, source=leaf, target=dst)
+    print("STP: ", shortest_path)
+    stps.append(shortest_path)
+  print(stps)
+  # delete one edge at a time
+  for stp in stps:
+    d_tor_length = len(stp)
+    new_stp = []
+    # tmp_G = G
+    src = stp[0]
+    for i in range(0, len(stp)-1):
+      tmp_G = G.copy() # recover
+      tmp_G.remove_edge(stp[i], stp[i+1])
+      print(f'From {src} Removing {stp[i]}, {stp[i+1]}')
+      try:
+        tmp_stp = nx.shortest_path(G, source=src, target=dst)
+      except nx.NetworkXNoPath:
+        print(f'No path between {src} and {dst}')
+        continue
+      print("Updated stp: ", new_stp)
+      if (len(tmp_stp) > d_tor_length):
+        new_stp = tmp_stp
+        print("Updated stp: ", new_stp)
+  pass
 
 print("----networkx----")
-layer_sizes = [5,4,6,4,4,3,1]
+layer_sizes = [5,3,7,4,1]
 # layer_color = ["gold", "violet", "blue", "black", "red"]
 computer_list = []
 user_list = []
@@ -171,11 +208,9 @@ nx.draw(G, pos,
 print("Adjacency Matrix: ")
 print(nx.to_dict_of_dicts(G))
 print(nx.info(G))
-print("[[All leaves]]: ",find_all_leaves(G))
-#print(nx.shortest_path(G)[0][11])
+algorithm_2(G)
 
 # store graph
-store_graph(G)
+#store_graph(G)
 plt.show()
-
-read_graph()
+# read_graph()
