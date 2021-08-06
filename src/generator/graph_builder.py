@@ -1,6 +1,4 @@
 # essential
-import os
-import uuid
 import itertools
 import random
 import sys
@@ -20,15 +18,15 @@ from utility import read_graph
 
 def struct_graph(*layer_sizes, nonjump_percentage: float,
                 blockable_percentage: float,
-                extra_edge_per_node_lower_bound: int,
-                extra_edge_per_node_upper_bound: int):
+                outgoing_lower_bound: int,
+                outgoing_upper_bound: int):
   """
     Generate randomized graph according to the pattern of BloodHound topologies
     [Parameters]
       layer_sizes: layer list, each element represents the number of nodes in each layer
       extra_edges_percentage: the percentage of normal link, 1-extra_edges+percentage = # of jump
-      extra_edge_per_node_lower_bound: min val of outgoing degree
-      extra_edge_per_node_upper_bound: max val of outgoing degree, has to be +1 than .._lower_bound (python random limit[,))
+      outgoing_lower_bound: min val of outgoing degree
+      outgoing_upper_bound: max val of outgoing degree, has to be +1 than .._lower_bound (python random limit[,))
     [Return]
       generated graph as Graph
   """
@@ -47,7 +45,7 @@ def struct_graph(*layer_sizes, nonjump_percentage: float,
     # sequentially choose src node
     for node in layers[idx]:
       # loop for the number of outgoing edge of each node
-      for j in range(random.choice(range(extra_edge_per_node_lower_bound, extra_edge_per_node_upper_bound))):
+      for j in range(1, max(2, random.choice(range(outgoing_lower_bound, outgoing_upper_bound)))):
         # randomly choose dst node
         if random.random() < nonjump_percentage: # 70% percent of time, bipartite
           v = random.choice(layers[idx+1])
@@ -126,9 +124,9 @@ def cost_function(G: nx.Graph, s: list, DA: int, prob: float) -> float:
     return total_successful_rate/len(s)
 
 
-layer_sizes = [3,2,1]#[5,4,3,4,6,3,2,1]
-G = struct_graph(*layer_sizes, nonjump_percentage=0.8, extra_edge_per_node_lower_bound=1, 
-                extra_edge_per_node_upper_bound=2, blockable_percentage=0.2)
+layer_sizes = [7,6,5,4,3,2,1]#[5,4,3,4,6,3,2,1]
+G = struct_graph(*layer_sizes, nonjump_percentage=0.8, outgoing_lower_bound=3, 
+                outgoing_upper_bound=5, blockable_percentage=0.3)
 
 print("----networkx----")
 # configure drawing parameters
@@ -156,4 +154,4 @@ print("Graph info: ", nx.info(G))
 # store graph
 # store_graph(G)
 plt.show()
-read_graph()
+# read_graph()
