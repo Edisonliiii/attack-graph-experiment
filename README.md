@@ -5,3 +5,4 @@ Empirical Experiment on solving IGL problem in the context of BloodHound
 2. implement algorithm 1 and test
 3. test the implementation of cost function
 4. finish build_graph, neo4j_builder (can wait)
+5. merge read_graph, store_graph, draw as a class
