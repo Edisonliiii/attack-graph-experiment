@@ -1,123 +1,22 @@
-# customized
-from networkx.algorithms.shortest_paths.generic import shortest_path
-from networkx.readwrite.gml import read_gml
-from nodes import Nodes
-from computer import Computer
-from user import User
-# networkx
-import networkx as nx
-from networkx.drawing.nx_agraph import to_agraph
-from networkx.utils import pairwise
-import matplotlib.pyplot as plt
 # essential
 import os
 import uuid
 import itertools
 import random
-
-def read_graph():
-  """
-    [Parameters]
-      Read from where
-    [Return]
-      should be G(nx graph), but needs to fix impl
-  """
-  path = "./data/train/"
-  for filename in os.listdir(path):
-    if filename.endswith(".gml"): # read out graph
-      G_tmp = nx.read_gml(os.path.join(path, filename), label="label")
-      pos_tmp = nx.multipartite_layout(G_tmp, subset_key="layer")
-      nx.draw(G_tmp, pos_tmp,
-        with_labels=True,
-        node_size=5,
-        connectionstyle="arc3,rad=-0.2",
-        width=0.1,
-        font_size=10)
-      print(os.path.join(path, filename))
-      # plt.show()
-
-def store_graph(G: nx.Graph):
-  """
-    Store graph as file
-    [Parameters]
-      G -- graph
-    [Return]
-      None
-  """
-  name = "./data/train/" + "Graph-" +  uuid.uuid4().hex + ".gml"
-  nx.write_gml(G, name)
-  pass
-
-def find_all_leaves(G: nx.Graph) -> list:
-  """
-    [Parameters]
-      G: nx.Graph -- graph
-    [Return]
-      leaves as list
-  """
-  return [v for v, d in G.in_degree() if d == 0]
-
-def build_graph():
-  """
-    Define graph nodes and edges(relationships) in the context of BloodHound
-  """
-  computers = []
-  users = []
-  groups = []
-  gpos = []
-  outs = []
-
-  relationship = {
-    "AdminTo": [
-      ("Group", "Computer")
-    ],
-    "GenericAll": [
-      ("Group", "Computer")
-    ],
-    "AddMember": [
-      ("Group", "Group")
-    ],
-    "AllowedToDelegate": [
-      ("User", "Computer"),
-      ("Computer", "Computer")
-    ],
-    "CanRDP": [
-      ("Group", "Computer"),
-      ("User", "Computer")
-    ],
-    "Contains": [
-      ("Domain", "OU"),
-      ("OU", "Computer")
-    ],
-    "DCSync": [
-      ("Group", "Domain")
-    ],
-    "ExecuteDCOM": [
-      ("User", "Computer"),
-      ("Group", "Computer")
-    ],
-    "ForceChangePassword": [
-      ("Group", "User")
-    ],
-    "GenericWrite": [],
-    "GetChanges": [],
-    "GetChangesAll": [],
-    "GpLink": [],
-    "HasSession": [],
-    "MemberOf": [],
-    "Owns": [],
-    "ReadLAPSPassword": [],
-    "WriteDacl": [],
-    "WriteOwner": []
-  }
-  pass
-
-def neo4j_builder():
-  """
-    Build neo4j according to generated graph
-  """
-  pass
-
+import sys
+sys.path.insert(1, '../utility')
+# networkx
+import networkx as nx
+from networkx.drawing.nx_agraph import to_agraph
+from networkx.utils import pairwise
+from networkx.algorithms.shortest_paths.generic import shortest_path
+from networkx.readwrite.gml import read_gml
+import matplotlib.pyplot as plt
+# customized
+from nodes import Nodes
+from computer import Computer
+from user import User
+from utility.utility import read_graph
 def struct_graph(*layer_sizes, nonjump_percentage: float,
                 blockable_percentage: float,
                 extra_edge_per_node_lower_bound: int,
@@ -128,9 +27,9 @@ def struct_graph(*layer_sizes, nonjump_percentage: float,
       layer_sizes: layer list, each element represents the number of nodes in each layer
       extra_edges_percentage: the percentage of normal link, 1-extra_edges+percentage = # of jump
       extra_edge_per_node_lower_bound: min val of outgoing degree
-      extra_edge_per_node_upper_bound: max val of outgoing degree
+      extra_edge_per_node_upper_bound: max val of outgoing degree, has to be +1 than .._lower_bound (python random limit[,))
     [Return]
-      generated graph
+      generated graph as Graph
   """
   # split the array in terms of layer_sizes
   extends = pairwise(itertools.accumulate((0,) + layer_sizes))
@@ -226,9 +125,9 @@ def cost_function(G: nx.Graph, s: list, DA: int, prob: float) -> float:
     return total_successful_rate/len(s)
 
 
-layer_sizes = [5,4,3,4,6,3,2,1]
-G = struct_graph(*layer_sizes, nonjump_percentage=0.8, extra_edge_per_node_lower_bound=2, 
-                extra_edge_per_node_upper_bound=4, blockable_percentage=0.2)
+layer_sizes = [3,2,1]#[5,4,3,4,6,3,2,1]
+G = struct_graph(*layer_sizes, nonjump_percentage=0.8, extra_edge_per_node_lower_bound=1, 
+                extra_edge_per_node_upper_bound=2, blockable_percentage=0.2)
 
 print("----networkx----")
 # configure drawing parameters
@@ -251,10 +150,9 @@ print("Nodes: ", G.nodes())
 print("Node attributes: ", nx.get_node_attributes(G,"layer"))
 print("Edge attributes: ", nx.get_edge_attributes(G,"blockable"))
 print("Adjacency Matrix: ", nx.to_dict_of_dicts(G))
-print(nx.info(G))
+print("Graph info: ", nx.info(G))
 # algorithm_2(G)
-
 # store graph
 # store_graph(G)
 plt.show()
-# read_graph()
+read_graph()
