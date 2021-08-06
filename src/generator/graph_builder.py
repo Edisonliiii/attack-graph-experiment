@@ -118,11 +118,16 @@ def neo4j_builder():
   """
   pass
 
-def struct_graph(*layer_sizes):
+def struct_graph(*layer_sizes, nonjump_percentage: float, 
+                  extra_edge_per_node_lower_bound: int,
+                  extra_edge_per_node_upper_bound: int):
   """
     Generate randomized graph according to the pattern of BloodHound topologies
     [Parameters]
       layer_sizes: layer list, each element represents the number of nodes in each layer
+      extra_edges_percentage: the percentage of normal link, 1-extra_edges+percentage = # of jump
+      extra_edge_per_node_lower_bound: min val of outgoing degree
+      extra_edge_per_node_upper_bound: max val of outgoing degree
     [Return]
       generated graph
   """
@@ -138,15 +143,21 @@ def struct_graph(*layer_sizes):
     G.add_nodes_from(layer, layer=i)
   # [Add Edges]
   for idx in range(len(layers)-1):
+    # sequentially choose src node
     for node in layers[idx]:
-      for j in range(random.choice(range(2, 5))):
-        if random.random() < 0.6: # 70% percent of time, bipartite
+      # loop for the number of outgoing edge of each node
+      for j in range(random.choice(range(extra_edge_per_node_lower_bound, extra_edge_per_node_upper_bound))):
+        # randomly choose dst node
+        if random.random() < nonjump_percentage: # 70% percent of time, bipartite
           v = random.choice(layers[idx+1])
-        else: # 30% percent of time, jump
-          # choose layer
-          l = random.choice(range(idx+1, min(len(layers), idx+5)))
+        else:                                         # 30% percent of time, jump
+          # choose layer, randomly jump in the rage of (idx+1, len(layers))
+          if (idx+2 == len(layers)):
+            continue
+          l = random.choice(range(min(idx+2, len(layers)), len(layers)))
           # choose node
           v = random.choice(layers[l])
+        # connect!
         if (G.has_edge(node, v) == False):
           G.add_edges_from([(node, v)])
   return G
@@ -181,19 +192,40 @@ def algorithm_2(G: nx.Graph):
       except nx.NetworkXNoPath:
         print(f'No path between {src} and {dst}')
         continue
-      # print("Updated stp: ", tmp_stp)
       if (len(tmp_stp) >= d_tor_length):
         new_stp = tmp_stp
         print("Updated stp: ", new_stp)
   pass
 
+def cost_function(G: nx.Graph, s: list, DA: int, prob: float) -> float:
+  """
+    Calculate successful rate in average
+    [Parameter]
+      s -- list of starting points
+      DA -- index of the root domain admin
+      prob -- all the same, probability of successful attack
+    [Return]
+  """
+  total_successful_rate = 0.0
+  for node in s:
+    try:
+      stp = nx.shortest_path(G, source=node, target=DA)
+    except nx.NetworkXNoPath:
+      print(f'No path between {src} and {dst}')
+      continue
+    cur_path_successful_rate = 1.0
+    for i in range(len(stp)):
+       cur_path_successful_rate *= prob
+    total_successful_rate += cur_path_successful_rate
+    return total_successful_rate/len(s)
+
 print("----networkx----")
-layer_sizes = [5,3,7,4,1]
+layer_sizes = [5,21,14,12,11,1]
 # layer_color = ["gold", "violet", "blue", "black", "red"]
 computer_list = []
 user_list = []
 
-G = struct_graph(*layer_sizes)
+G = struct_graph(*layer_sizes, nonjump_percentage=0.9, extra_edge_per_node_lower_bound=10, extra_edge_per_node_upper_bound=12)
 # color = [layer_color[data["layer"]] for v, data in G.nodes(data=True)]
 print("Nodes: ", G.nodes())
 print("Node attributes: ", nx.get_node_attributes(G,"layer"))
