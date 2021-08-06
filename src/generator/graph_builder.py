@@ -118,9 +118,10 @@ def neo4j_builder():
   """
   pass
 
-def struct_graph(*layer_sizes, nonjump_percentage: float, 
-                  extra_edge_per_node_lower_bound: int,
-                  extra_edge_per_node_upper_bound: int):
+def struct_graph(*layer_sizes, nonjump_percentage: float,
+                blockable_percentage: float,
+                extra_edge_per_node_lower_bound: int,
+                extra_edge_per_node_upper_bound: int):
   """
     Generate randomized graph according to the pattern of BloodHound topologies
     [Parameters]
@@ -159,7 +160,12 @@ def struct_graph(*layer_sizes, nonjump_percentage: float,
           v = random.choice(layers[l])
         # connect!
         if (G.has_edge(node, v) == False):
-          G.add_edges_from([(node, v)])
+          tmp = random.random()
+          print(f'tmp: {tmp}; percent: {blockable_percentage}')
+          if tmp < blockable_percentage:
+            G.add_edge(node, v, blockable=True)
+          else:
+            G.add_edge(node, v, blockable=False)
   return G
 
 def algorithm_2(G: nx.Graph):
@@ -219,30 +225,35 @@ def cost_function(G: nx.Graph, s: list, DA: int, prob: float) -> float:
     total_successful_rate += cur_path_successful_rate
     return total_successful_rate/len(s)
 
+
+layer_sizes = [5,4,3,4,6,3,2,1]
+G = struct_graph(*layer_sizes, nonjump_percentage=0.8, extra_edge_per_node_lower_bound=2, 
+                extra_edge_per_node_upper_bound=4, blockable_percentage=0.2)
+
 print("----networkx----")
-layer_sizes = [5,21,14,12,11,1]
-# layer_color = ["gold", "violet", "blue", "black", "red"]
+# configure drawing parameters
+edge_color = [G[u][v]['blockable'] for u,v in G.edges] # draw according to blockable or not
 computer_list = []
 user_list = []
-
-G = struct_graph(*layer_sizes, nonjump_percentage=0.9, extra_edge_per_node_lower_bound=10, extra_edge_per_node_upper_bound=12)
-# color = [layer_color[data["layer"]] for v, data in G.nodes(data=True)]
-print("Nodes: ", G.nodes())
-print("Node attributes: ", nx.get_node_attributes(G,"layer"))
+# determine position as multipartite graph
 pos = nx.multipartite_layout(G, subset_key="layer")
+# draw graph
 nx.draw(G, pos,
         with_labels=True,
         node_size=5,
         connectionstyle="arc3,rad=-0.2",
-        width=0.1,
+        width=1,
+        edge_color = edge_color,
         labels={k: k for k in range(sum(layer_sizes))},
         font_size=10)
-print("Adjacency Matrix: ")
-print(nx.to_dict_of_dicts(G))
-print(nx.info(G))
-algorithm_2(G)
-
+# debug information
+print("Nodes: ", G.nodes())
+print("Node attributes: ", nx.get_node_attributes(G,"layer"))
+print("Edge attributes: ", nx.get_edge_attributes(G,"blockable"))
+print("Adjacency Matrix: ", nx.to_dict_of_dicts(G))
+print("Graph info: ", nx.info(G))
+# algorithm_2(G)
 # store graph
-#store_graph(G)
+# store_graph(G)
 plt.show()
 # read_graph()
