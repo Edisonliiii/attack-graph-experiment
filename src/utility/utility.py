@@ -5,11 +5,12 @@ import itertools
 import random
 # networkx
 import networkx as nx
+import matplotlib.pyplot as plt
 from networkx.drawing.nx_agraph import to_agraph
 from networkx.utils import pairwise
 from networkx.algorithms.shortest_paths.generic import shortest_path
 from networkx.readwrite.gml import read_gml
-import matplotlib.pyplot as plt
+from fibheap import *
 # customized
 from nodes import Nodes
 from computer import Computer
@@ -175,3 +176,99 @@ def find_all_leaves(G: nx.Graph) -> list:
   """
   return [v for v, d in G.in_degree() if d == 0]
 
+def algorithm_2(G: nx.Graph):
+  """
+    Security Cascade Graphs : algorithm 2 O((l^b)n)
+  """
+  # get all leaves
+  leaves = find_all_leaves(G)
+  dst = G.number_of_nodes() - 1
+  print(leaves)
+  # find the stp from all leaves
+  stps = []
+  for leaf in leaves:
+    shortest_path = nx.shortest_path(G, source=leaf, target=dst)
+    print("STP: ", shortest_path)
+    stps.append(shortest_path)
+  print(stps)
+  # delete one edge at a time
+  for stp in stps:
+    d_tor_length = len(stp)
+    new_stp = []
+    # tmp_G = G
+    src = stp[0]
+    for i in range(0, len(stp)-1):
+      tmp_G = G.copy() # recover
+      tmp_G.remove_edge(stp[i], stp[i+1])
+      print(f'From {src} Removing {stp[i]}, {stp[i+1]}')
+      try:
+        tmp_stp = nx.shortest_path(tmp_G, source=src, target=dst)
+      except nx.NetworkXNoPath:
+        print(f'No path between {src} and {dst}')
+        continue
+      if (len(tmp_stp) >= d_tor_length):
+        new_stp = tmp_stp
+        print("Updated stp: ", new_stp)
+  pass
+
+def algorithm_tree(G: nx.Graph, total_layer: int):
+  """
+    Tree topology, most basic one O(blogn+n)
+  """
+  # check if it is simple tree or not
+  for (node,value) in G.out_degree():
+    if value > 1:
+      print("This is not a simple tree.")
+      return
+  # get all successful rate
+  sr_list = successful_rate(0.9, total_layer)
+  print(sr_list)
+  # find all leaves
+  leaf_nodes = find_all_leaves(G)
+  print(f'Leaves are: {leaf_nodes}')
+  paths_from_leaves = []
+  for leaf in leaf_nodes:
+    paths = nx.all_simple_paths(G, leaf, G.number_of_nodes()-1) # return as a list of lists [[]]
+    tmp = list(paths)
+    if len(tmp) > 0:
+      paths_from_leaves.append(tmp[0]) # only get the first one, because we can ensure there is at most one path
+  print(f'all paths from leaves: {paths_from_leaves}')
+  for edge in paths_from_leaves:
+    for idx in range(0, len(edge)-1):
+      if G[edge[idx]][edge[idx+1]]['blockable']==True:
+        print("!!!!!!!!!!!!Debug for another blockable edge!!!!!!!!!!!!!")
+        print(f'** successful rate for the current step: {sr_list[idx+1]}')
+        print(f'-- layer info {G.nodes[edge[idx]]}')
+        print(f'-- Blockable {edge[idx]}, {edge[idx+1]}')
+        # calculate how many entries involved with current edge
+        if 'total_sr' in G[edge[idx]][edge[idx+1]]:
+          G[edge[idx]][edge[idx+1]]['total_sr'] += 1
+        else:
+          G[edge[idx]][edge[idx+1]]['total_sr'] = 1
+        print(f'-- total sr: {G[edge[idx]][edge[idx+1]]["total_sr"]}')
+        
+  
+def successful_rate(sr: float, total_layer: int) -> list:
+  return [sr**i for i in range(total_layer)]
+
+def cost_function(G: nx.Graph, s: list, DA: int, prob: float) -> float:
+  """
+    Calculate successful rate in average
+    [Parameter]
+      s -- list of starting points
+      DA -- index of the root domain admin
+      prob -- all the same, probability of successful attack
+    [Return]
+  """
+  total_successful_rate = 0.0
+  for node in s:
+    try:
+      stp = nx.shortest_path(G, source=node, target=DA)
+    except nx.NetworkXNoPath:
+      print(f'No path between {src} and {dst}')
+      continue
+    cur_path_successful_rate = 1.0
+    for i in range(len(stp)):
+       cur_path_successful_rate *= prob
+    total_successful_rate += cur_path_successful_rate
+    return total_successful_rate/len(s)
