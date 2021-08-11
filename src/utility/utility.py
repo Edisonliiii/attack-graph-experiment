@@ -16,6 +16,24 @@ from nodes import Nodes
 from computer import Computer
 from user import User
 
+# ---------- necessary information for aggregation
+def linkable_entries(G: nx.Graph, edge: tuple, entries: list) -> list:
+  """
+    entries could reach the edge
+    
+    [Parameter]
+      G -- graph
+      edge -- target edge
+      entries -- entry points
+    [Return]
+      entries could reach the edge
+  """
+  linkable_entries = []
+  for entry in entries:
+    if nx.has_path(G, entry, edge[0]) == True:
+      linkable_entries.append(entry)
+  return linkable_entries
+
 # ---------- graph utilities
 def read_graph():
   """
