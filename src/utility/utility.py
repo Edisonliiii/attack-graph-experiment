@@ -114,6 +114,29 @@ def neo4j_builder():
   """
   pass
 
+def add_new_attributes(G: nx.Graph, target: str, attr: str, default_value: any) -> None:
+  """
+    add new attributes to each node / edges
+
+    [Parameters]
+      G: graph
+      target: "nodes" or "edges"
+      attr: new attribtue name
+      default_value: default value for the attribtues
+    [Return]
+      None
+  """
+  print(getattr(G, target))
+  if target == 'nodes':
+    for node in G.nodes:
+      G.nodes[node][attr] = default_value
+  elif target == 'edges':
+    for edge in G.edges:
+      G[edge[0]][edge[1]][attr] = default_value
+  return
+  
+
+
 def struct_graph(*layer_sizes, nonjump_percentage: float,
                 blockable_percentage: float,
                 outgoing_lower_bound: int,
@@ -157,7 +180,6 @@ def struct_graph(*layer_sizes, nonjump_percentage: float,
         # connect!
         if (G.has_edge(node, v) == False):
           tmp = random.random()
-          print(f'tmp: {tmp}; percent: {blockable_percentage}')
           if tmp < blockable_percentage:
             G.add_edge(node, v, blockable=True)
           else:

@@ -9,9 +9,9 @@ import utility as ut
 
 layer_sizes = [4,3,2,1] #[5,4,3,4,6,3,2,1]
 G = ut.struct_graph(*layer_sizes, nonjump_percentage=0.8, outgoing_lower_bound=2, 
-                outgoing_upper_bound=3, blockable_percentage=0.4)
+                outgoing_upper_bound=3, blockable_percentage=0.2)
 
-print("----networkx----")
+print("----DEBUG----")
 # configure drawing parameters
 edge_color = [G[u][v]['blockable'] for u,v in G.edges] # draw according to blockable or not
 computer_list = []
@@ -34,10 +34,13 @@ print("Node attributes: ", nx.get_node_attributes(G,"layer"))
 print("Edge attributes: ", nx.get_edge_attributes(G,"blockable"))
 print("Adjacency Matrix: ", nx.to_dict_of_dicts(G))
 print("Graph info: ", nx.info(G))
-# algorithm_2(G)
 ut.algorithm_tree(G, len(layer_sizes))
 # store graph
 plt.show()
 #ut.store_graph(G)
 #ut.read_graph()
-
+print("Test add_new_attributes......")
+ut.add_new_attributes(G, 'nodes', 'hello_node', 0)
+print("Nodes after add_new_attributes: ", G.nodes(data=True))
+ut.add_new_attributes(G, 'edges', 'hello_edge', 1)
+print("Edges after add_new_attributes: ", G.edges(data=True))
