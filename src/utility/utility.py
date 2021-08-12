@@ -34,6 +34,19 @@ def linkable_entries(G: nx.Graph, edge: tuple, entries: list) -> list:
       linkable_entries.append(entry)
   return linkable_entries
 
+def find_all_path(G: nx.Graph, src: int, dst: int) -> list:
+  """
+  Return all path from src to dst
+
+  [Parameters]
+    G -- graph
+    src -- source node
+    dst -- target node
+  [Return]
+    sorted list according to path's length
+  """
+  return sorted(list(nx.all_simple_paths(G, src, dst)), key=lambda x : len(x))
+
 # ---------- graph utilities
 def read_graph():
   """
@@ -286,7 +299,6 @@ def algorithm_tree(G: nx.Graph, total_layer: int):
         else:
           G[edge[idx]][edge[idx+1]]['total_sr'] = 1
         print(f'-- total sr: {G[edge[idx]][edge[idx+1]]["total_sr"]}')
-        
   
 def successful_rate(sr: float, total_layer: int) -> list:
   return [sr**i for i in range(total_layer)]
