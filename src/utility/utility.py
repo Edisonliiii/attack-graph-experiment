@@ -270,6 +270,8 @@ def struct_graph(*layer_sizes, nonjump_percentage: float,
     [Return]
       generated graph as Graph
   """
+  print("layer size debug2: ", type(layer_sizes))
+  print("layer size debug: ", layer_sizes)
   # declare graph object
   G = nx.DiGraph()
   # split the array in terms of layer_sizes

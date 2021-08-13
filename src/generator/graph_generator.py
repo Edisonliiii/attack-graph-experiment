@@ -22,7 +22,7 @@ import numpy as np
 
 
 class GraphGenerator:
-  def __init__(self, layer_size: list) -> None:
+  def __init__(self, layer_sizes: list) -> None:
     """
     [Round]
     randomization -> picked edges -> get ground truth(classification) -> make it as one dataset
@@ -31,8 +31,8 @@ class GraphGenerator:
     Do the process one by one
     """
     self.G = nx.DiGraph()
-    self.layer_size = layer_size
-    self.DA = sum(layer_size)-1
+    self.layer_sizes = layer_sizes
+    self.DA = sum(layer_sizes)-1
     self.nodes_attributes = ['layer', 'in_degree', 'out_degree']
     self.edges_attributes = ['blockable', 'connected_entries', 'level_gap']
   
@@ -144,7 +144,7 @@ class GraphGenerator:
     return
 
   def struct_graph(self,
-                  *layer_sizes, nonjump_percentage: float,
+                   nonjump_percentage: float,
                    blockable_percentage: float,
                    outgoing_lower_bound: int,
                    outgoing_upper_bound: int) -> None:
@@ -159,7 +159,7 @@ class GraphGenerator:
         generated graph as Graph
     """
     # split the array in terms of layer_sizes
-    extends = pairwise(itertools.accumulate((0,) + layer_sizes))
+    extends = pairwise(itertools.accumulate((0,) + (*self.layer_sizes,)))
     # range for each layer
     layers = [range(start, end) for start, end in extends]
     # i - index for each range
@@ -193,9 +193,9 @@ class GraphGenerator:
           self.G[node][v]['level_gap'] = self.G.nodes[v]['layer'] - self.G.nodes[node]['layer']
     # prepare necessary attributess
     print("\nTest add_new_attributes......")
-    self.add_new_attributes(self.G, 'edges', 'connected_entries', 0)
-    self.add_new_attributes(self.G, 'nodes', 'in_degree', 0)
-    self.add_new_attributes(self.G, 'nodes', 'out_degree', 0)
+    self.add_new_attributes('edges', 'connected_entries', 0)
+    self.add_new_attributes('nodes', 'in_degree', 0)
+    self.add_new_attributes('nodes', 'out_degree', 0)
     print("Add connected entries rate as new edge attribtues: ", self.G.edges(data=True))
 
   # algorithms
@@ -239,6 +239,44 @@ class GraphGenerator:
       if nx.has_path(self.G, entry, edge[0]) == True:
         linkable_entries.append(entry)
     return linkable_entries
+
+  # to torch
+  def networkx_to_torch(self):
+    """
+      Transfer netowrkx to fit torch geo
+    """
+    layer_list = list(nx.get_node_attributes(self.G, 'layer').values())
+    in_degree_list = [val[1] for val in list(self.G.in_degree)]
+    out_degree_list = [val[1] for val in list(self.G.out_degree)]
+    # layer
+    print("[Node]: In networkx_to_torch layer: ", np.array(layer_list))
+    # in_degree & out_degree
+    print("[Node]: In network_to_torch in_degree: ", np.array(in_degree_list))
+    print("[Node]: In network_to_torch out_degree: ", np.array(out_degree_list))
+    node_matrix = np.column_stack((layer_list, in_degree_list, out_degree_list))
+    print(f'[Node Matrix]: {node_matrix}')
+
+    # blockable
+    blockable_list = list(nx.get_edge_attributes(self.G, 'blockable').values())
+    connected_entries_list = list(
+        nx.get_edge_attributes(self.G, 'connected_entries').values())
+    level_gap_list = list(nx.get_edge_attributes(self.G, 'level_gap').values())
+    print("[Edge]: In networkx_to_torch blockable: ", np.array(blockable_list))
+    # connected_entries
+    print("[Edge]: In networkx_to_torch connected_entries: ",
+          np.array(connected_entries_list))
+    # level_gap
+    print("[Edge]: In networkx_to_torch level_gap: ", np.array(level_gap_list))
+    edge_matrix = np.column_stack(
+        (blockable_list, connected_entries_list, level_gap_list))
+    print(f'[Edge Matrix]: {edge_matrix}')
+    # for loop on nodes_attributes & edges_attributes respectively
+    #   - nx.get_[node/edge]_attributes(self.G, '{attribute_name}').values()
+    data = from_networkx(self.G)
+    data.x = torch.tensor(node_matrix)
+    #data.nodes = torch.tensor(list(self.G.nodes))
+    # crap torch geometrics, need to build your own node feature matrix
+    return data
 
 
 
