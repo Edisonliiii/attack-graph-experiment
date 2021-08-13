@@ -1,20 +1,70 @@
 # essential
 import os
+from typing import List, Union
 import uuid
 import itertools
 import random
+from typing import List
 # networkx
 import networkx as nx
 import matplotlib.pyplot as plt
+from networkx.classes.function import nodes
 from networkx.drawing.nx_agraph import to_agraph
 from networkx.utils import pairwise
 from networkx.algorithms.shortest_paths.generic import shortest_path
 from networkx.readwrite.gml import read_gml
 from fibheap import *
+#torch
+import torch
+from torch_geometric.utils import from_networkx
+# numpy
+import numpy as np
 # customized
 from nodes import Nodes
 from computer import Computer
 from user import User
+
+# global lists
+nodes_attributes = ['layer', 'in_degree', 'out_degree']
+edges_attributes = ['blockable', 'connected_entries', 'level_gap']
+
+
+# ---------- dataset build utilities
+def networkx_to_torch(G: nx.Graph):
+  """
+    Transfer netowrkx to fit torch geo
+  """
+  layer_list = list(nx.get_node_attributes(G, 'layer').values())
+  in_degree_list = [val[1] for val in list(G.in_degree)]
+  out_degree_list = [val[1] for val in list(G.out_degree)]
+  # layer
+  print("[Node]: In networkx_to_torch layer: ", np.array(layer_list))
+  # in_degree & out_degree
+  print("[Node]: In network_to_torch in_degree: ", np.array(in_degree_list))
+  print("[Node]: In network_to_torch out_degree: ", np.array(out_degree_list))
+  node_matrix = np.column_stack((layer_list, in_degree_list, out_degree_list))
+  print(f'[Node Matrix]: {node_matrix}')
+
+  # blockable
+  blockable_list = list(nx.get_edge_attributes(G, 'blockable').values())
+  connected_entries_list = list(
+      nx.get_edge_attributes(G, 'connected_entries').values())
+  level_gap_list = list(nx.get_edge_attributes(G, 'level_gap').values())
+  print("[Edge]: In networkx_to_torch blockable: ", np.array(blockable_list))
+  # connected_entries
+  print("[Edge]: In networkx_to_torch connected_entries: ", np.array(connected_entries_list))
+  # level_gap
+  print("[Edge]: In networkx_to_torch level_gap: ", np.array(level_gap_list))
+  edge_matrix = np.column_stack((blockable_list, connected_entries_list, level_gap_list))
+  print(f'[Edge Matrix]: {edge_matrix}')
+  # for loop on nodes_attributes & edges_attributes respectively
+  #   - nx.get_[node/edge]_attributes(G, '{attribute_name}').values()
+  data = from_networkx(G)
+  #data.nodes = torch.tensor(list(G.nodes))
+  # crap torch geometrics, need to build your own node feature matrix
+  return data
+
+
 
 # ---------- necessary information for aggregation
 def linkable_entries(G: nx.Graph, edge: tuple, entries: list) -> list:
@@ -47,7 +97,29 @@ def find_all_path(G: nx.Graph, src: int, dst: int) -> list:
   """
   return sorted(list(nx.all_simple_paths(G, src, dst)), key=lambda x : len(x))
 
+def find_all_leaves(G: nx.Graph) -> list:
+  """
+    Get all leaf nodes
+
+    [Parameters]
+      G: nx.Graph -- graph
+    [Return]
+      leaves as list
+  """
+  return [v for v, d in G.in_degree() if d == 0]
 # ---------- graph utilities
+
+def graph_debug(G: nx.Graph) -> None:
+  """
+  print out the basic informations
+  """
+  # debug information
+  print("---------------START---------------")
+  print("\nTest Basic Information......")
+  print("Nodes: ", G.nodes(data=True))
+  print("Edges ", G.edges(data=True))
+  print("\n----------------END----------------")
+
 def read_graph():
   """
     Read graph from .gml
@@ -84,7 +156,7 @@ def store_graph(G: nx.Graph):
   nx.write_gml(G, name)
   pass
 
-def build_graph():
+def ad_concepts():
   """
     Define graph nodes and edges(relationships) in the context of BloodHound
   """
@@ -139,7 +211,7 @@ def build_graph():
   }
   pass
 
-def neo4j_builder():
+def neo4j_mapper():
   """
     Build neo4j according to generated graph
   """
@@ -157,17 +229,18 @@ def add_new_attributes(G: nx.Graph, target: str, attr: str, default_value: any) 
     [Return]
       None
   """
+  global nodes_attributes, edges_attributes
   print(getattr(G, target))
   if target == 'nodes':
+    nodes_attributes.append(attr)
     for node in G.nodes:
       G.nodes[node][attr] = default_value
   elif target == 'edges':
+    edges_attributes.append(attr)
     for edge in G.edges:
       G[edge[0]][edge[1]][attr] = default_value
   return
   
-
-
 def struct_graph(*layer_sizes, nonjump_percentage: float,
                 blockable_percentage: float,
                 outgoing_lower_bound: int,
@@ -182,11 +255,12 @@ def struct_graph(*layer_sizes, nonjump_percentage: float,
     [Return]
       generated graph as Graph
   """
+  # declare graph object
+  G = nx.DiGraph()
   # split the array in terms of layer_sizes
   extends = pairwise(itertools.accumulate((0,) + layer_sizes))
   # range for each layer
   layers = [range(start, end) for start, end in extends]
-  G = nx.DiGraph()
   # i - index for each range
   # layer - range per se
   # [Add Nodes]
@@ -215,20 +289,18 @@ def struct_graph(*layer_sizes, nonjump_percentage: float,
             G.add_edge(node, v, blockable=True)
           else:
             G.add_edge(node, v, blockable=False)
+        G[node][v]['level_gap'] = G.nodes[v]['layer'] - G.nodes[node]['layer']
+  # prepare necessary attributess
+  print("\nTest add_new_attributes......")
+  add_new_attributes(G, 'edges', 'connected_entries', 0)
+  add_new_attributes(G, 'nodes', 'in_degree', 0)
+  add_new_attributes(G, 'nodes', 'out_degree', 0)
+  print("Add connected entries rate as new edge attribtues: ", G.edges(data=True))
+  # add_new_attributes(G, 'edges', 'level_gap', 0)
+  # print("Add layer gap as new edge attribtues: ", G.edges(data=True))
   return G
 
 # ---------- graph algorithms
-def find_all_leaves(G: nx.Graph) -> list:
-  """
-    Get all leaf nodes
-
-    [Parameters]
-      G: nx.Graph -- graph
-    [Return]
-      leaves as list
-  """
-  return [v for v, d in G.in_degree() if d == 0]
-
 def algorithm_2(G: nx.Graph):
   """
     Security Cascade Graphs : algorithm 2 O((l^b)n)
@@ -267,6 +339,9 @@ def algorithm_2(G: nx.Graph):
 def algorithm_tree(G: nx.Graph, total_layer: int):
   """
     Tree topology, most basic one O(blogn+n)
+    ONLY works on simple tree
+    has to be at least one path from node -> DA
+    or it would always be zero
   """
   # check if it is simple tree or not
   for (node,value) in G.out_degree():
@@ -294,11 +369,8 @@ def algorithm_tree(G: nx.Graph, total_layer: int):
         print(f'-- layer info {G.nodes[edge[idx]]}')
         print(f'-- Blockable {edge[idx]}, {edge[idx+1]}')
         # calculate how many entries involved with current edge
-        if 'total_sr' in G[edge[idx]][edge[idx+1]]:
-          G[edge[idx]][edge[idx+1]]['total_sr'] += 1
-        else:
-          G[edge[idx]][edge[idx+1]]['total_sr'] = 1
-        print(f'-- total sr: {G[edge[idx]][edge[idx+1]]["total_sr"]}')
+        G[edge[idx]][edge[idx+1]]['connected_entries'] += 1
+        print(f'-- total sr: {G[edge[idx]][edge[idx+1]]["connected_entries"]}')
   
 def successful_rate(sr: float, total_layer: int) -> list:
   return [sr**i for i in range(total_layer)]
