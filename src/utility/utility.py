@@ -8,6 +8,7 @@ from typing import List
 # networkx
 import networkx as nx
 import matplotlib.pyplot as plt
+from networkx.algorithms.centrality.current_flow_betweenness import edge_current_flow_betweenness_centrality
 from networkx.classes.function import nodes
 from networkx.drawing.nx_agraph import to_agraph
 from networkx.utils import pairwise
@@ -27,6 +28,7 @@ from user import User
 # global lists
 nodes_attributes = ['layer', 'in_degree', 'out_degree']
 edges_attributes = ['blockable', 'connected_entries', 'level_gap']
+DA: int = 0
 
 
 # ---------- dataset build utilities
@@ -60,6 +62,7 @@ def networkx_to_torch(G: nx.Graph):
   # for loop on nodes_attributes & edges_attributes respectively
   #   - nx.get_[node/edge]_attributes(G, '{attribute_name}').values()
   data = from_networkx(G)
+  data.x = torch.tensor(node_matrix)
   #data.nodes = torch.tensor(list(G.nodes))
   # crap torch geometrics, need to build your own node feature matrix
   return data
@@ -67,6 +70,7 @@ def networkx_to_torch(G: nx.Graph):
 
 
 # ---------- necessary information for aggregation
+# [check]
 def linkable_entries(G: nx.Graph, edge: tuple, entries: list) -> list:
   """
     entries could reach the edge
@@ -84,6 +88,7 @@ def linkable_entries(G: nx.Graph, edge: tuple, entries: list) -> list:
       linkable_entries.append(entry)
   return linkable_entries
 
+# [check]
 def find_all_path(G: nx.Graph, src: int, dst: int) -> list:
   """
   Return all path from src to dst
@@ -97,6 +102,7 @@ def find_all_path(G: nx.Graph, src: int, dst: int) -> list:
   """
   return sorted(list(nx.all_simple_paths(G, src, dst)), key=lambda x : len(x))
 
+# [check]
 def find_all_leaves(G: nx.Graph) -> list:
   """
     Get all leaf nodes
@@ -108,7 +114,7 @@ def find_all_leaves(G: nx.Graph) -> list:
   """
   return [v for v, d in G.in_degree() if d == 0]
 # ---------- graph utilities
-
+# [check]
 def graph_debug(G: nx.Graph) -> None:
   """
   print out the basic informations
@@ -120,14 +126,17 @@ def graph_debug(G: nx.Graph) -> None:
   print("Edges ", G.edges(data=True))
   print("\n----------------END----------------")
 
+# [check]
 def read_graph():
   """
-    Read graph from .gml
+    Read graph from .gml, need to config nx.draw() to recover the original layout
+    But all of the data could be normally read and create as a new nx.Graph
+    Read all .gml under the folder one time!
 
     [Parameters]
       Read from where
     [Return]
-      should be G(nx graph), but needs to fix impl
+      should be a list of G(nx graph)
   """
   path = "./data/train/"
   for filename in os.listdir(path):
@@ -138,11 +147,15 @@ def read_graph():
         with_labels=True,
         node_size=5,
         connectionstyle="arc3,rad=-0.2",
-        width=0.1,
+        edge_color=[G_tmp[u][v]['blockable'] for u, v in G_tmp.edges],
+        width=1,
         font_size=10)
-      print(os.path.join(path, filename))
+      # print(os.path.join(path, filename))
+      # print(G_tmp.nodes(data=True))
+      # print(G_tmp.edges(data=True))
       plt.show()
 
+# [check]
 def store_graph(G: nx.Graph):
   """
     Store graph as file
@@ -217,6 +230,7 @@ def neo4j_mapper():
   """
   pass
 
+# [check]
 def add_new_attributes(G: nx.Graph, target: str, attr: str, default_value: any) -> None:
   """
     add new attributes to each node / edges
@@ -240,7 +254,8 @@ def add_new_attributes(G: nx.Graph, target: str, attr: str, default_value: any) 
     for edge in G.edges:
       G[edge[0]][edge[1]][attr] = default_value
   return
-  
+
+# [check]
 def struct_graph(*layer_sizes, nonjump_percentage: float,
                 blockable_percentage: float,
                 outgoing_lower_bound: int,
@@ -373,26 +388,37 @@ def algorithm_tree(G: nx.Graph, total_layer: int):
         print(f'-- total sr: {G[edge[idx]][edge[idx+1]]["connected_entries"]}')
   
 def successful_rate(sr: float, total_layer: int) -> list:
+  """
+  return all possible successful rate as a list
+  we assume all edge have the united successful rate for now, will improve in the future
+
+  [Parameters]
+    sr -- successful rate for each edge
+    total_layer -- the number of total_layer, used to calculate each sr for each layer
+  [Return]
+    sr list
+  """
   return [sr**i for i in range(total_layer)]
 
-def cost_function(G: nx.Graph, s: list, DA: int, prob: float) -> float:
+def graph_utility(G: nx.Graph, entries: list, sr_prob: float) -> float:
   """
-    Calculate successful rate in average
-    [Parameter]
-      s -- list of starting points
-      DA -- index of the root domain admin
-      prob -- all the same, probability of successful attack
-    [Return]
+  Calculate the utility for the whole graph
+  Used to evaluate the effect of randomization for each graph (used for building(build the label) loss function)
+  we try to minimize the sr for each graph
+  we assume the possibilities getting each entry are exactly the same, we improve
   """
-  total_successful_rate = 0.0
-  for node in s:
+  global DA
+  total_successful_rate: float = 0.0
+  for entry in entries:
     try:
-      stp = nx.shortest_path(G, source=node, target=DA)
+      stp = nx.shortest_path(G, source=entry, target=DA)
     except nx.NetworkXNoPath:
-      print(f'No path between {src} and {dst}')
+      print(f'No path between {entry} and {DA}')
       continue
+    # calculate sr
     cur_path_successful_rate = 1.0
     for i in range(len(stp)):
        cur_path_successful_rate *= prob
+    # update total sr
     total_successful_rate += cur_path_successful_rate
-    return total_successful_rate/len(s)
+  return total_successful_rate/len(entries)

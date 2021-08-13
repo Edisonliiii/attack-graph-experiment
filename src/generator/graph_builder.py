@@ -4,14 +4,13 @@ sys.path.insert(1, '../utility')
 # networkx
 import networkx as nx
 import matplotlib.pyplot as plt
-import torch
-import torch_geometric
 # customized
 import utility as ut
 
 layer_sizes = [4,3,2,1] #[5,4,3,4,6,3,2,1]
-G = ut.struct_graph(*layer_sizes, nonjump_percentage=0.8, outgoing_lower_bound=2, 
-                outgoing_upper_bound=3, blockable_percentage=0.4)
+ut.DA = sum(layer_sizes)-1
+G = ut.struct_graph(*layer_sizes, nonjump_percentage=0.8, outgoing_lower_bound=3, 
+                outgoing_upper_bound=5, blockable_percentage=0.4)
 
 print("----DEBUG----")
 # configure drawing parameters
@@ -29,14 +28,14 @@ nx.draw(G, pos,
         font_size=10)
 
 ut.graph_debug(G)
-print("\nTest simple tree algorithm......")
-ut.algorithm_tree(G, len(layer_sizes))
+# print("\nTest simple tree algorithm......")
+# ut.algorithm_tree(G, len(layer_sizes))
 
 print("\nTest store_graph and read_graph......")
 # store graph
 plt.show()
-#ut.store_graph(G)
-#ut.read_graph()
+# ut.store_graph(G)
+# ut.read_graph()
 
 print("\nTest linkable_entries......")
 leaves = ut.find_all_leaves(G)
@@ -48,7 +47,5 @@ print("First torch data: ", data)
 # print(data.__getitem__('blockable'))
 #print("Nodes after torch: ", data.nodes)
 print("Edges after torch: ", data.edge_index)
-print("Edges attributes after torch: ", data.edge_attr)
-print(data.num_nodes)
-
+print(f'[Torch]: [num_nodes, num_node_features] {data.x}')
 ut.graph_debug(G)
