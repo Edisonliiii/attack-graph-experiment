@@ -26,12 +26,14 @@ from computer import Computer
 from user import User
 
 # global lists
+# [check]
 nodes_attributes = ['layer', 'in_degree', 'out_degree']
 edges_attributes = ['blockable', 'connected_entries', 'level_gap']
 DA: int = 0
 
 
 # ---------- dataset build utilities
+# [check]
 def networkx_to_torch(G: nx.Graph):
   """
     Transfer netowrkx to fit torch geo
@@ -389,6 +391,7 @@ def algorithm_tree(G: nx.Graph, total_layer: int):
         G[edge[idx]][edge[idx+1]]['connected_entries'] += 1
         print(f'-- total sr: {G[edge[idx]][edge[idx+1]]["connected_entries"]}')
   
+# [check]
 def successful_rate(sr: float, total_layer: int) -> list:
   """
   return all possible successful rate as a list
@@ -402,6 +405,7 @@ def successful_rate(sr: float, total_layer: int) -> list:
   """
   return [sr**i for i in range(total_layer)]
 
+# [check]
 def graph_utility(G: nx.Graph, entries: list, sr_prob: float) -> float:
   """
   Calculate the utility for the whole graph

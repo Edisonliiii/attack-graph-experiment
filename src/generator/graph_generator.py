@@ -1,4 +1,5 @@
 # essential
+from dp_learn.bh.src.utility.utility import find_all_leaves
 import os
 import uuid
 import itertools
@@ -33,6 +34,8 @@ class GraphGenerator:
     self.G = nx.DiGraph()
     self.layer_sizes = layer_sizes
     self.DA = sum(layer_sizes)-1
+    # in_degree & out_degree hasn't been updated yet
+    # but they are in attribtue matrix now
     self.nodes_attributes = ['layer', 'in_degree', 'out_degree']
     self.edges_attributes = ['blockable', 'connected_entries', 'level_gap']
   
@@ -239,6 +242,41 @@ class GraphGenerator:
       if nx.has_path(self.G, entry, edge[0]) == True:
         linkable_entries.append(entry)
     return linkable_entries
+
+  def successful_rate(self, sr: float) -> list:
+    """
+    return all possible successful rate as a list
+    we assume all edge have the united successful rate for now, will improve in the future
+
+    [Parameters]
+      sr -- successful rate for each edge
+    [Return]
+      sr list
+    """
+    return [sr**i for i in range(len(self.layer_sizes))]
+
+  def graph_utility(self, entries: list, sr_prob: float) -> float:
+    """
+    Calculate the utility for the whole graph
+    Used to evaluate the effect of randomization for each graph (used for building(build the label) loss function)
+    we try to minimize the sr for each graph
+    we assume the possibilities getting each entry are exactly the same, we improve
+    """
+    total_successful_rate: float = 0.0
+    entries = self.find_all_leaves()
+    for entry in entries:
+      try:
+        stp = nx.shortest_path(self.G, source=entry, target=self.DA)
+      except nx.NetworkXNoPath:
+        print(f'No path between {entry} and {self.DA}')
+        continue
+      # calculate sr
+      cur_path_successful_rate = 1.0
+      for i in range(len(stp)):
+        cur_path_successful_rate *= sr_prob
+      # update total sr
+      total_successful_rate += cur_path_successful_rate
+    return total_successful_rate/len(entries)
 
   # to torch
   def networkx_to_torch(self):
