@@ -1,5 +1,7 @@
 # essential
-from dp_learn.bh.src.utility.utility import find_all_leaves
+# from networkx.readwrite import edgelist
+# from dp_learn.bh.src.utility.utility import find_all_leaves
+# from dp_learn.bh.src.utility.utility import graph_utility
 import os
 import uuid
 import itertools
@@ -34,20 +36,29 @@ class GraphGenerator:
     self.G = nx.DiGraph()
     self.layer_sizes = layer_sizes
     self.DA = sum(layer_sizes)-1
+    self.blockable_edges = []
+    self.entries = []
     # in_degree & out_degree hasn't been updated yet
     # but they are in attribtue matrix now
     self.nodes_attributes = ['layer', 'in_degree', 'out_degree']
     self.edges_attributes = ['blockable', 'connected_entries', 'level_gap']
   
+  # debug
+  def get_graph(self) -> nx.DiGraph():
+    return self.G
+
+  def get_blockable_edges(self) -> list:
+    return self.blockable_edges
+
+  def get_entries(self) -> list:
+    return self.entries
+
   # utilities
   def __delete_graph(self) -> None:
     """
     Should be called every time we finish a complete data [Round]
     """
     self.G.clear()
-
-  def get_graph(self) -> nx.DiGraph():
-    return self.G
 
   def draw_graph(self):
     """
@@ -146,6 +157,22 @@ class GraphGenerator:
         self.G[edge[0]][edge[1]][attr] = default_value
     return
 
+  def edge_filter(self, attr: str, attr_val: any) -> list:
+    """
+    Return all blockable edges as a list [(src, dst),(),()...]
+    
+    [Parameters]
+      attr -- attribtue name
+      attr_val -- atttribute value you want to get
+    [Return]
+      filtered edges
+    """
+    edge_list = []
+    for edge in self.G.edges:
+      if self.G[edge[0]][edge[1]][attr] == attr_val:
+        edge_list.append((edge[0], edge[1]))
+    return edge_list
+
   def struct_graph(self,
                    nonjump_percentage: float,
                    blockable_percentage: float,
@@ -200,9 +227,12 @@ class GraphGenerator:
     self.add_new_attributes('nodes', 'in_degree', 0)
     self.add_new_attributes('nodes', 'out_degree', 0)
     print("Add connected entries rate as new edge attribtues: ", self.G.edges(data=True))
+    # set blockable_edges
+    self.entries = self.__find_all_leaves()
+    self.blockable_edges = self.edge_filter('blockable', True)
 
   # algorithms
-  def find_all_leaves(self) -> list:
+  def __find_all_leaves(self) -> list:
     """
       Get all leaf nodes
 
@@ -226,24 +256,23 @@ class GraphGenerator:
     """
     return sorted(list(nx.all_simple_paths(self.G, src, dst)), key=lambda x: len(x))
 
-  def linkable_entries(self, edge: tuple, entries: list) -> list:
+  def linkable_entries(self, edge: tuple) -> list:
     """
       entries could reach the edge
       
       [Parameter]
         G -- graph
-        edge -- target edge
-        entries -- entry points
+        edge -- target edge (src, dst)
       [Return]
         entries could reach the edge
     """
     linkable_entries = []
-    for entry in entries:
+    for entry in self.entries:
       if nx.has_path(self.G, entry, edge[0]) == True:
         linkable_entries.append(entry)
     return linkable_entries
 
-  def successful_rate(self, sr: float) -> list:
+  def __successful_rate(self, sr: float) -> list:
     """
     return all possible successful rate as a list
     we assume all edge have the united successful rate for now, will improve in the future
@@ -255,7 +284,7 @@ class GraphGenerator:
     """
     return [sr**i for i in range(len(self.layer_sizes))]
 
-  def graph_utility(self, entries: list, sr_prob: float) -> float:
+  def graph_utility(self, sr_prob: float) -> float:
     """
     Calculate the utility for the whole graph
     Used to evaluate the effect of randomization for each graph (used for building(build the label) loss function)
@@ -263,8 +292,7 @@ class GraphGenerator:
     we assume the possibilities getting each entry are exactly the same, we improve
     """
     total_successful_rate: float = 0.0
-    entries = self.find_all_leaves()
-    for entry in entries:
+    for entry in self.entries:
       try:
         stp = nx.shortest_path(self.G, source=entry, target=self.DA)
       except nx.NetworkXNoPath:
@@ -276,7 +304,43 @@ class GraphGenerator:
         cur_path_successful_rate *= sr_prob
       # update total sr
       total_successful_rate += cur_path_successful_rate
-    return total_successful_rate/len(entries)
+    return total_successful_rate/len(self.entries)
+
+  def simplify_to_tree(self, epoch: int):
+    """
+    cut the graph into simple tree
+    
+    [Parameters]
+      epoch -- # of iteration
+    [Return]
+      None
+    """
+    # for i in range(epoch):
+    #   total_sr = 1.0
+    #   for entry in entries:
+    pass
+
+  def cut_strategy(self, budget: int, epoch: int):
+    """
+    Randomly pick blockable edges and find stp for each of the entires
+    """
+    if budget >= len(self.blockable_edges):
+      print("[WARNING]: budget should never larger than the number of blockable edges!")
+      exit(1)
+    # store status
+    G_tmp = self.G.copy()
+    worst_sr = 1.0
+    for i in range(epoch):
+      blocked_edges = random.sample(self.blockable_edges, budget)
+      print("\nTest blocked edges: ", blocked_edges)
+      self.G.remove_edges_from(blocked_edges)
+      total_sr = self.graph_utility(0.6)
+      print("SR after blocking blockable edges: ", total_sr)
+      worst_sr = min(total_sr, worst_sr)
+      # recover status
+      self.G = G_tmp.copy()
+    print(f'Best performance: {worst_sr}')
+    pass
 
   # to torch
   def networkx_to_torch(self):
