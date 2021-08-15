@@ -1,7 +1,7 @@
 # essential
 from networkx.classes import graph
 import sys
-
+import time
 from networkx.readwrite import graph6
 sys.path.insert(1, '../utility')
 sys.path.insert(1, './')
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from graph_generator import GraphGenerator
 import utility as ut
 
-layer_sizes = [5,4,3,2,1]
+layer_sizes = [7,6,5,4,3,2,1]
 graph_gen = GraphGenerator(layer_sizes)
 graph_gen.struct_graph(nonjump_percentage=0.6, outgoing_lower_bound=2,
                        outgoing_upper_bound=4, blockable_percentage=0.3)
@@ -23,7 +23,7 @@ graph_gen.draw_graph()
 # linkable_entries = graph_gen.linkable_entries((8,9))
 # print(f'All linkable entries are: {linkable_entries}')
 
-# data = graph_gen.networkx_to_torch()
+data = graph_gen.networkx_to_torch()
 # print("\nTest networkx_to_torch......")
 # print(f'First torch data: {data}')
 # print(f'Edges after torch: {data.edge_index}')
@@ -33,9 +33,9 @@ graph_gen.draw_graph()
 
 # print("\nTest blockable_edges")
 # print(graph_gen.get_blockable_edges())
-graph_gen.cut_strategy(3, 1000)
 
-
+# graph_gen.cut_strategy(3, 1000)
+graph_gen.graph_debug()
 
 
 

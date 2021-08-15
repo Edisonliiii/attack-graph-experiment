@@ -44,6 +44,17 @@ class GraphGenerator:
     self.edges_attributes = ['blockable', 'connected_entries', 'level_gap']
   
   # debug
+  def graph_debug(self) -> None:
+    """
+    print out the basic informations
+    """
+    # debug information
+    print("---------------DEBUG START---------------")
+    print("\nTest Basic Information......")
+    print("\nNodes: ", self.G.nodes(data=True))
+    print("\nEdges ", self.G.edges(data=True))
+    print("\n----------------DEBUG END----------------")
+
   def get_graph(self) -> nx.DiGraph():
     return self.G
 
@@ -81,17 +92,6 @@ class GraphGenerator:
             font_size=10)
     plt.show()
     pass
-
-  def graph_debug(self) -> None:
-    """
-    print out the basic informations
-    """
-    # debug information
-    print("---------------DEBUG START---------------")
-    print("\nTest Basic Information......")
-    print("Nodes: ", self.G.nodes(data=True))
-    print("Edges ", self.G.edges(data=True))
-    print("\n----------------DEBUG END----------------")
 
   def read_graph(self):
     """
@@ -224,12 +224,15 @@ class GraphGenerator:
     # prepare necessary attributess
     print("\nTest add_new_attributes......")
     self.add_new_attributes('edges', 'connected_entries', 0)
-    self.add_new_attributes('nodes', 'in_degree', 0)
-    self.add_new_attributes('nodes', 'out_degree', 0)
+    self.add_new_attributes('nodes', 'in_degree', 0)          # no need to set for now, will add to matrix directly
+    self.add_new_attributes('nodes', 'out_degree', 0)         # no need to set for now, will add to matrix directly
     print("Add connected entries rate as new edge attribtues: ", self.G.edges(data=True))
     # set blockable_edges
     self.entries = self.__find_all_leaves()
     self.blockable_edges = self.edge_filter('blockable', True)
+    # set linkable edges
+    for edge in self.blockable_edges:
+      self.G[edge[0]][edge[1]]['connected_entries'] = len(self.linkable_entries(edge))
 
   # algorithms
   def __find_all_leaves(self) -> list:
