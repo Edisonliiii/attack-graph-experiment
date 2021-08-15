@@ -23,7 +23,7 @@ graph_gen.draw_graph()
 # linkable_entries = graph_gen.linkable_entries((8,9))
 # print(f'All linkable entries are: {linkable_entries}')
 
-data = graph_gen.networkx_to_torch()
+# data = graph_gen.networkx_to_torch()
 # print("\nTest networkx_to_torch......")
 # print(f'First torch data: {data}')
 # print(f'Edges after torch: {data.edge_index}')
@@ -34,8 +34,9 @@ data = graph_gen.networkx_to_torch()
 # print("\nTest blockable_edges")
 # print(graph_gen.get_blockable_edges())
 
-graph_gen.cut_strategy(3, 1000)
-# graph_gen.graph_debug()
+# graph_gen.cut_strategy(3, 100)
+graph_gen.edge_classification_sample()
+graph_gen.graph_debug()
 
 
 

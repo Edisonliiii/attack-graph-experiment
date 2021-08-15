@@ -3,6 +3,7 @@
 # from dp_learn.bh.src.utility.utility import find_all_leaves
 # from dp_learn.bh.src.utility.utility import graph_utility
 # from dp_learn.bh.src.utility.utility import successful_rate
+import enum
 import os
 import uuid
 import itertools
@@ -24,6 +25,13 @@ from torch_geometric.utils import from_networkx
 # numpy
 import numpy as np
 
+class EDGE_CLASS(enum.Enum):
+  """
+  class for edge tagging
+  """
+  TAKEN=1
+  NOTTAKEN=2
+  BLOCKED=3
 
 class GraphGenerator:
   def __init__(self, layer_sizes: list) -> None:
@@ -42,7 +50,7 @@ class GraphGenerator:
     # in_degree & out_degree hasn't been updated yet
     # but they are in attribtue matrix now
     self.nodes_attributes = ['layer', 'in_degree', 'out_degree']
-    self.edges_attributes = ['blockable', 'connected_entries', 'level_gap', 'not_taken', 'taken', 'blocked']
+    self.edges_attributes = ['blockable', 'connected_entries', 'level_gap', 'class']
   
   # debug
   def graph_debug(self) -> None:
@@ -243,13 +251,14 @@ class GraphGenerator:
     self.add_new_attributes('nodes', 'in_degree', 0)          # no need to set for now, will add to matrix directly
     self.add_new_attributes('nodes', 'out_degree', 0)         # no need to set for now, will add to matrix directly
     self.add_new_attributes('graph', 'layer_sizes', self.layer_sizes)
+    self.add_new_attributes('edges', 'class', EDGE_CLASS.NOTTAKEN.value)
     print("Add connected entries rate as new edge attribtues: ", self.G.edges(data=True))
     # set blockable_edges
     self.entries = self.__find_all_leaves()
     self.blockable_edges = self.edge_filter('blockable', True)
     # set linkable edges(Here, we only calculate the blockable edges)
-    for edge in self.blockable_edges:
-      self.G[edge[0]][edge[1]]['connected_entries'] = len(self.linkable_entries(edge))
+    # for edge in self.blockable_edges:
+    #   self.G[edge[0]][edge[1]]['connected_entries'] = len(self.linkable_entries(edge))
 
   # algorithms
   def __find_all_leaves(self) -> list:
@@ -304,7 +313,7 @@ class GraphGenerator:
     """
     return [sr**i for i in range(len(self.layer_sizes))]
 
-  def graph_utility(self, sr_prob: float) -> float:
+  def graph_utility(self, sr_prob: float) -> tuple:
     """
     Calculate the utility for the whole graph
     Used to evaluate the effect of randomization for each graph (used for building(build the label) loss function)
@@ -312,19 +321,24 @@ class GraphGenerator:
     we assume the possibilities getting each entry are exactly the same, we improve
     """
     total_successful_rate: float = 0.0
+    stps = []
     successful_rate_list = self.__successful_rate(sr_prob)
     for entry in self.entries:
       try:
         stp = nx.shortest_path(self.G, source=entry, target=self.DA)
       except nx.NetworkXNoPath:
-        print(f'No path between {entry} and {self.DA}')
+        # print(f'No path between {entry} and {self.DA}')
         continue
+      # reserve current stp
+      stps.append(stp)
       # calculate sr
       cur_path_successful_rate = successful_rate_list[len(stp)-1]
       # update total sr
-      print("--",cur_path_successful_rate)
+      # print("--",cur_path_successful_rate)
       total_successful_rate += cur_path_successful_rate
-    return total_successful_rate/len(self.entries)
+
+    # return average successful rate and current stps
+    return (total_successful_rate/len(self.entries), stps)
 
   def simplify_to_tree(self, epoch: int):
     """
@@ -340,7 +354,7 @@ class GraphGenerator:
     #   for entry in entries:
     pass
 
-  def cut_strategy(self, budget: int, epoch: int):
+  def __cut_strategy(self, budget: int, epoch: int) -> tuple:
     """
     Randomly pick blockable edges and find stp for each of the entires
     """
@@ -350,21 +364,33 @@ class GraphGenerator:
     # store status
     G_tmp = self.G.copy()
     worst_sr = 1.0
-    worst_sr_choices = []
+    worst_block_choices = []
+    worst_stps = []
     for i in range(epoch):
       blocked_edges = random.sample(self.blockable_edges, budget)
       print("\nTest blocked edges: ", blocked_edges)
       self.G.remove_edges_from(blocked_edges)
-      total_sr = self.graph_utility(0.6)
+      total_sr, stps = self.graph_utility(0.6)
       print("SR after blocking blockable edges: ", total_sr)
       # worst_sr = min(total_sr, worst_sr)
       if worst_sr > total_sr:
         worst_sr = total_sr
-        worst_sr_choices = blocked_edges
+        worst_block_choices = blocked_edges
+        worst_stps = stps
       # recover status
       self.G = G_tmp.copy()
     print(f'\nBest performance: {worst_sr}')
-    print(f'Best performance blocked edges: {worst_sr_choices}')
+    print(f'Best performance blocked edges: {worst_block_choices}')
+    print(f'Best performance paths: {worst_stps}')
+    return (worst_block_choices, worst_stps)
+
+  def edge_classification_sample(self):
+    blocked, taken = self.__cut_strategy(3, 100)
+    for edge in blocked:
+      self.G[edge[0]][edge[1]]['class'] = EDGE_CLASS.BLOCKED.value
+    for stp in taken:
+      for i in range(len(stp)-1):
+        self.G[stp[i]][stp[i+1]]['class'] = EDGE_CLASS.TAKEN.value
     pass
 
   # to torch
