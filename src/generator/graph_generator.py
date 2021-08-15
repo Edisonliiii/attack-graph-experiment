@@ -2,6 +2,7 @@
 # from networkx.readwrite import edgelist
 # from dp_learn.bh.src.utility.utility import find_all_leaves
 # from dp_learn.bh.src.utility.utility import graph_utility
+# from dp_learn.bh.src.utility.utility import successful_rate
 import os
 import uuid
 import itertools
@@ -41,7 +42,7 @@ class GraphGenerator:
     # in_degree & out_degree hasn't been updated yet
     # but they are in attribtue matrix now
     self.nodes_attributes = ['layer', 'in_degree', 'out_degree']
-    self.edges_attributes = ['blockable', 'connected_entries', 'level_gap']
+    self.edges_attributes = ['blockable', 'connected_entries', 'level_gap', 'not_taken', 'taken', 'blocked']
   
   # debug
   def graph_debug(self) -> None:
@@ -64,14 +65,7 @@ class GraphGenerator:
   def get_entries(self) -> list:
     return self.entries
 
-  # utilities
-  def __delete_graph(self) -> None:
-    """
-    Should be called every time we finish a complete data [Round]
-    """
-    self.G.clear()
-
-  def draw_graph(self):
+  def draw_graph(self) -> None:
     """
     Should only be called for testing purpose on small graph
     """
@@ -87,20 +81,38 @@ class GraphGenerator:
             node_size=5,
             connectionstyle="arc3,rad=-0.2",
             width=1,
-            edge_color = edge_color,
+            edge_color=edge_color,
             labels={k: k for k in range(sum(self.layer_sizes))},
             font_size=10)
     plt.show()
     pass
 
-  def read_graph(self):
+  def draw_grpah_after_remove_edges(self, remove_list: list) -> None: 
+    pass
+
+  # utilities
+  def __delete_graph(self) -> None:
+    """
+    Should be called every time we finish a complete data [Round]
+    """
+    self.G.clear()
+
+  def read_graph(self, path: str):
     """
       Read graph from .gml, need to config nx.draw() to recover the original layout
       But all of the data could be normally read and create as a new nx.Graph
       Read all .gmls under the folder one time!
 
+      need to config :     
+        self.G
+        self.layer_sizes
+        self.DA
+        self.blockable_edges
+        self.entries
+
       [Parameters]
         Read from where
+        path -- should be path+filename, read graph one by one
       [Return]
         should be a list of G(nx graph)
     """
@@ -108,18 +120,19 @@ class GraphGenerator:
     for filename in os.listdir(path):
       if filename.endswith(".gml"):  # read out graph
         G_tmp = nx.read_gml(os.path.join(path, filename), label="label")
-        pos_tmp = nx.multipartite_layout(G_tmp, subset_key="layer")
-        nx.draw(G_tmp, pos_tmp,
-                with_labels=True,
-                node_size=5,
-                connectionstyle="arc3,rad=-0.2",
-                edge_color=[G_tmp[u][v]['blockable'] for u, v in G_tmp.edges],
-                width=1,
-                font_size=10)
+        # This part should not be delete untile config draw_after_read()
+        # pos_tmp = nx.multipartite_layout(G_tmp, subset_key="layer")
+        # nx.draw(G_tmp, pos_tmp,
+        #         with_labels=True,
+        #         node_size=5,
+        #         connectionstyle="arc3,rad=-0.2",
+        #         edge_color=[G_tmp[u][v]['blockable'] for u, v in G_tmp.edges],
+        #         width=1,
+        #         font_size=10)
         # print(os.path.join(path, filename))
         # print(G_tmp.nodes(data=True))
         # print(G_tmp.edges(data=True))
-        plt.show()
+        # plt.show()
 
   def store_graph(self) -> None:
     """
@@ -136,11 +149,11 @@ class GraphGenerator:
 
   def add_new_attributes(self, target: str, attr: str, default_value: any) -> None:
     """
-      add new attributes to each node / edges
+      add new attributes to each nodes / edges / graph
 
       [Parameters]
         G: graph
-        target: "nodes" or "edges"
+        target: "nodes" or "edges" or "graph"
         attr: new attribtue name
         default_value: default value for the attribtues (ONLY int for now)
       [Return]
@@ -155,6 +168,9 @@ class GraphGenerator:
       self.edges_attributes.append(attr)
       for edge in self.G.edges:
         self.G[edge[0]][edge[1]][attr] = default_value
+    elif target == 'graph':
+      attr_g = {attr : default_value}
+      self.G.graph.update(attr_g)
     return
 
   def edge_filter(self, attr: str, attr_val: any) -> list:
@@ -226,11 +242,12 @@ class GraphGenerator:
     self.add_new_attributes('edges', 'connected_entries', 0)
     self.add_new_attributes('nodes', 'in_degree', 0)          # no need to set for now, will add to matrix directly
     self.add_new_attributes('nodes', 'out_degree', 0)         # no need to set for now, will add to matrix directly
+    self.add_new_attributes('graph', 'layer_sizes', self.layer_sizes)
     print("Add connected entries rate as new edge attribtues: ", self.G.edges(data=True))
     # set blockable_edges
     self.entries = self.__find_all_leaves()
     self.blockable_edges = self.edge_filter('blockable', True)
-    # set linkable edges
+    # set linkable edges(Here, we only calculate the blockable edges)
     for edge in self.blockable_edges:
       self.G[edge[0]][edge[1]]['connected_entries'] = len(self.linkable_entries(edge))
 
@@ -295,6 +312,7 @@ class GraphGenerator:
     we assume the possibilities getting each entry are exactly the same, we improve
     """
     total_successful_rate: float = 0.0
+    successful_rate_list = self.__successful_rate(sr_prob)
     for entry in self.entries:
       try:
         stp = nx.shortest_path(self.G, source=entry, target=self.DA)
@@ -302,10 +320,9 @@ class GraphGenerator:
         print(f'No path between {entry} and {self.DA}')
         continue
       # calculate sr
-      cur_path_successful_rate = 1.0
-      for i in range(len(stp)):
-        cur_path_successful_rate *= sr_prob
+      cur_path_successful_rate = successful_rate_list[len(stp)-1]
       # update total sr
+      print("--",cur_path_successful_rate)
       total_successful_rate += cur_path_successful_rate
     return total_successful_rate/len(self.entries)
 
@@ -327,22 +344,27 @@ class GraphGenerator:
     """
     Randomly pick blockable edges and find stp for each of the entires
     """
-    if budget >= len(self.blockable_edges):
+    if budget > len(self.blockable_edges):
       print("[WARNING]: budget should never larger than the number of blockable edges!")
       exit(1)
     # store status
     G_tmp = self.G.copy()
     worst_sr = 1.0
+    worst_sr_choices = []
     for i in range(epoch):
       blocked_edges = random.sample(self.blockable_edges, budget)
       print("\nTest blocked edges: ", blocked_edges)
       self.G.remove_edges_from(blocked_edges)
       total_sr = self.graph_utility(0.6)
       print("SR after blocking blockable edges: ", total_sr)
-      worst_sr = min(total_sr, worst_sr)
+      # worst_sr = min(total_sr, worst_sr)
+      if worst_sr > total_sr:
+        worst_sr = total_sr
+        worst_sr_choices = blocked_edges
       # recover status
       self.G = G_tmp.copy()
-    print(f'Best performance: {worst_sr}')
+    print(f'\nBest performance: {worst_sr}')
+    print(f'Best performance blocked edges: {worst_sr_choices}')
     pass
 
   # to torch
