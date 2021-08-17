@@ -12,11 +12,11 @@ import matplotlib.pyplot as plt
 from graph_generator import GraphGenerator
 import utility as ut
 
-layer_sizes = [7,6,5,4,3,2,1]
+layer_sizes = [3,624,532,412,31,22,1]
 graph_gen = GraphGenerator(layer_sizes)
-graph_gen.struct_graph(nonjump_percentage=0.6, outgoing_lower_bound=2,
-                       outgoing_upper_bound=4, blockable_percentage=0.3)
-graph_gen.draw_graph()
+graph_gen.struct_graph(nonjump_percentage=0.6, outgoing_lower_bound=5,
+                       outgoing_upper_bound=6, blockable_percentage=0.3)
+# graph_gen.draw_graph()
 # graph_gen.graph_debug()
 
 # print(f'All leaves are: {graph_gen.get_entries()}')
@@ -37,7 +37,7 @@ graph_gen.draw_graph()
 # graph_gen.cut_strategy(3, 100)
 graph_gen.edge_classification_sample()
 graph_gen.graph_debug()
-
+graph_gen.networkx_to_torch()
 
 
 

@@ -49,7 +49,7 @@ class GraphGenerator:
     self.entries = []
     # in_degree & out_degree hasn't been updated yet
     # but they are in attribtue matrix now
-    self.nodes_attributes = ['layer', 'in_degree', 'out_degree']
+    self.nodes_attributes = ['layer', 'in_degree', 'out_degree', 'stp_from_entries', 'stp_to_da']
     self.edges_attributes = ['blockable', 'connected_entries', 'level_gap', 'class']
   
   # debug
@@ -127,7 +127,9 @@ class GraphGenerator:
     path = "./data/train/"
     for filename in os.listdir(path):
       if filename.endswith(".gml"):  # read out graph
-        G_tmp = nx.read_gml(os.path.join(path, filename), label="label")
+        self.G = nx.read_gml(os.path.join(path, filename), label="label")
+
+        # G_tmp = nx.read_gml(os.path.join(path, filename), label="label")
         # This part should not be delete untile config draw_after_read()
         # pos_tmp = nx.multipartite_layout(G_tmp, subset_key="layer")
         # nx.draw(G_tmp, pos_tmp,
@@ -252,15 +254,30 @@ class GraphGenerator:
     self.add_new_attributes('nodes', 'out_degree', 0)         # no need to set for now, will add to matrix directly
     self.add_new_attributes('graph', 'layer_sizes', self.layer_sizes)
     self.add_new_attributes('edges', 'class', EDGE_CLASS.NOTTAKEN.value)
-    print("Add connected entries rate as new edge attribtues: ", self.G.edges(data=True))
-    # set blockable_edges
-    self.entries = self.__find_all_leaves()
-    self.blockable_edges = self.edge_filter('blockable', True)
-    # set linkable edges(Here, we only calculate the blockable edges)
-    # for edge in self.blockable_edges:
-    #   self.G[edge[0]][edge[1]]['connected_entries'] = len(self.linkable_entries(edge))
+    
+    self.__set_blockable()
+    self.__set_connected_entries()
 
   # algorithms
+  def __set_blockable(self):
+    """
+    set blockable edges
+    """
+    self.entries = self.__find_all_leaves()
+    self.blockable_edges = self.edge_filter('blockable', True)
+
+  def __set_connected_entries(self):
+    """
+    set connected_entries
+    set linkable edges(Here, we only calculate the blockable edges)
+    """
+    for edge in self.blockable_edges:
+      self.G[edge[0]][edge[1]]['connected_entries'] = len(self.linkable_entries(edge))
+
+  def __set_to_da(self, node: int):
+    stp = nx.shortest_path(self.G, source=node, target=self.DA)
+    self.G.nodes[node]['']
+
   def __find_all_leaves(self) -> list:
     """
       Get all leaf nodes
@@ -327,7 +344,7 @@ class GraphGenerator:
       try:
         stp = nx.shortest_path(self.G, source=entry, target=self.DA)
       except nx.NetworkXNoPath:
-        # print(f'No path between {entry} and {self.DA}')
+        print(f'No path between {entry} and {self.DA}')
         continue
       # reserve current stp
       stps.append(stp)
@@ -381,16 +398,19 @@ class GraphGenerator:
       self.G = G_tmp.copy()
     print(f'\nBest performance: {worst_sr}')
     print(f'Best performance blocked edges: {worst_block_choices}')
-    print(f'Best performance paths: {worst_stps}')
+    # print(f'Best performance paths: {worst_stps}')
     return (worst_block_choices, worst_stps)
 
   def edge_classification_sample(self):
-    blocked, taken = self.__cut_strategy(3, 100)
+    blocked, taken = self.__cut_strategy(5, 1000)
     for edge in blocked:
       self.G[edge[0]][edge[1]]['class'] = EDGE_CLASS.BLOCKED.value
     for stp in taken:
       for i in range(len(stp)-1):
         self.G[stp[i]][stp[i+1]]['class'] = EDGE_CLASS.TAKEN.value
+    
+    # print("\nTest on edge class tag: ",
+    #       nx.get_edge_attributes(self.G, 'class').values())
     pass
 
   # to torch
@@ -398,6 +418,7 @@ class GraphGenerator:
     """
       Transfer netowrkx to fit torch geo
     """
+    # [Build node embedding]
     layer_list = list(nx.get_node_attributes(self.G, 'layer').values())
     in_degree_list = [val[1] for val in list(self.G.in_degree)]
     out_degree_list = [val[1] for val in list(self.G.out_degree)]
@@ -406,9 +427,11 @@ class GraphGenerator:
     # in_degree & out_degree
     print("[Node]: In network_to_torch in_degree: ", np.array(in_degree_list))
     print("[Node]: In network_to_torch out_degree: ", np.array(out_degree_list))
+    # node matrix [num_npdes, node_attrs]
     node_matrix = np.column_stack((layer_list, in_degree_list, out_degree_list))
     print(f'[Node Matrix]: {node_matrix}')
 
+    # [Edge Embedding]
     # blockable
     blockable_list = list(nx.get_edge_attributes(self.G, 'blockable').values())
     connected_entries_list = list(
@@ -423,6 +446,9 @@ class GraphGenerator:
     edge_matrix = np.column_stack(
         (blockable_list, connected_entries_list, level_gap_list))
     print(f'[Edge Matrix]: {edge_matrix}')
+
+    # [label]
+    print(list(nx.get_edge_attributes(self.G, 'class').values()))
     # for loop on nodes_attributes & edges_attributes respectively
     #   - nx.get_[node/edge]_attributes(self.G, '{attribute_name}').values()
     data = from_networkx(self.G)
