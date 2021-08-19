@@ -20,12 +20,12 @@ class SAGEConv(MessagePassing):
         in_channels + out_channels, in_channels, bias=False)
     self.update_act = torch.nn.ReLU()
 
-  def forward(self, x, edge_index):
+  def forward(self, data):
     # x: node [N, in_channels(features)]
     # edge_index: edge [2, E]
-    edge_index, _ = remove_self_loops(edge_index)
-    edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
-    return self.propagate(edge_index, size=(x.size(0), x.size(0)), x=x)
+    # edge_index, _ = remove_self_loops(edge_index)
+    # edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
+    return self.propagate(data.edge_index, size=(data.x.size(0), data.x.size(0)), x=data.x)
 
   def message(self, x_j):
     # x_j has shape [E, in_channels]
