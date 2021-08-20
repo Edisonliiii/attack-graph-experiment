@@ -461,6 +461,7 @@ class GraphGenerator:
     data.edge_attr = torch.tensor(edge_matrix, dtype=torch.float)
     data.y = torch.tensor(class_list)
     data.new_edge_attr = []
+    # data.new_x  = []
     for i in range(data.edge_index.shape[1]):
       from_node = data.edge_index[0][i]
       to_node = data.edge_index[1][i]
