@@ -12,19 +12,21 @@ from networkx.algorithms.centrality.current_flow_betweenness import edge_current
 from networkx.algorithms.clique import number_of_cliques
 from networkx.classes.function import nodes
 from networkx.drawing.nx_agraph import to_agraph
+from networkx.readwrite import edgelist
 from networkx.utils import pairwise
 from networkx.algorithms.shortest_paths.generic import shortest_path
 from networkx.readwrite.gml import read_gml
 from fibheap import *
 #torch
 import torch
+from torch_geometric.data import Data
 from torch_geometric.utils import from_networkx
 # numpy
 import numpy as np
 
 class EDGE_CLASS(enum.Enum):
   """
-  class for edge tagging
+  class for edge tagging after classification
   """
   TAKEN=0
   NOTTAKEN=1
@@ -60,6 +62,22 @@ class GraphGenerator:
     print("\nNodes: ", self.G.nodes(data=True))
     print("\nEdges ", self.G.edges(data=True))
     print("\n----------------DEBUG END----------------")
+
+  def torch_debug(self, data: Data) -> None:
+    """
+    debugger for torch data
+    """
+    # node feature
+    print(f'[torch_debug](Node feature)data.x:\n {data.x}')
+    # edge classes
+    print(f'[torch_debug](Edge Classes)data.y:\n {data.y}')
+    # edges
+    print(f'[torch_debug](Edges)data.edge_index:\n {data.edge_index}')
+    # edge features
+    print(f'[torch_debug](Edge Feature)data.edge_attr:\n {data.edge_attr}')
+    # block features
+    print(f'[torch_debug](Block Feature)data.new_x:\n {data.new_x}')
+
 
   def get_graph(self) -> nx.DiGraph():
     return self.G
@@ -124,8 +142,7 @@ class GraphGenerator:
     path = "./data/train/"
     for filename in os.listdir(path):
       if filename.endswith(".gml"):  # read out graph
-        self.G = nx.read_gml(os.path.join(path, filename), label="label")
-
+        self.G = nx.read_gml(os.path.join(path, filename), label="label", destringizer=int)
         # G_tmp = nx.read_gml(os.path.join(path, filename), label="label")
         # This part should not be delete untile config draw_after_read()
         # pos_tmp = nx.multipartite_layout(G_tmp, subset_key="layer")
@@ -418,57 +435,70 @@ class GraphGenerator:
     pass
 
   # to torch
-  def networkx_to_torch(self):
+  def networkx_to_torch(self) -> Data:
     """
       Transfer netowrkx to fit torch geo
     """
-    # [Build node embedding]
+    # [Build Node Embedding]
     layer_list = list(nx.get_node_attributes(self.G, 'layer').values())
     in_degree_list = [val[1] for val in list(self.G.in_degree)]
     out_degree_list = [val[1] for val in list(self.G.out_degree)]
-    # layer
-    # print("[Node]: In networkx_to_torch layer: ", np.array(layer_list))
-    # in_degree & out_degree
-    # print("[Node]: In network_to_torch in_degree: ", np.array(in_degree_list))
-    # print("[Node]: In network_to_torch out_degree: ", np.array(out_degree_list))
-    # node matrix [num_npdes, node_attrs]
     node_matrix = np.column_stack((layer_list, in_degree_list, out_degree_list))
-    # print(f'[Node Matrix]: {node_matrix}')
 
-    # [Edge Embedding]
-    # blockable
-    blockable_list = list(nx.get_edge_attributes(self.G, 'blockable').values())
-    connected_entries_list = list(
-        nx.get_edge_attributes(self.G, 'connected_entries').values())
-    level_gap_list = list(nx.get_edge_attributes(self.G, 'level_gap').values())
-    class_list = list(nx.get_edge_attributes(self.G, 'class').values())
-    # print("[Edge]: In networkx_to_torch blockable: ", np.array(blockable_list))
-    # connected_entries
-    # print("[Edge]: In networkx_to_torch connected_entries: ",
-    #       np.array(connected_entries_list))
-    # level_gap
-    # print("[Edge]: In networkx_to_torch level_gap: ", np.array(level_gap_list))
+    # [Build Edge Embedding] all tensors are aligned
+    blockable_list = []
+    connected_entries_list = []
+    level_gap_list = []
+    class_list = []
+    edges_list = [[],[]]
+    for u, v in self.G.edges:
+      edges_list[0].append(int(u))
+      edges_list[1].append(int(v))
+      blockable_list.append(self.G[u][v]['blockable'])
+      connected_entries_list.append(self.G[u][v]['connected_entries'])
+      level_gap_list.append(self.G[u][v]['level_gap'])
+      class_list.append(self.G[u][v]['class'])
+    # [blockable, connected_entires, level_gap]
     edge_matrix = np.column_stack(
         (blockable_list, connected_entries_list, level_gap_list))
-    # print(f'[Edge Matrix]: {edge_matrix}')
 
-    # [label]
+    # [Build Edge Label]
     # print(list(nx.get_edge_attributes(self.G, 'class').values()))
     # for loop on nodes_attributes & edges_attributes respectively
     #   - nx.get_[node/edge]_attributes(self.G, '{attribute_name}').values()
+
+    # [Convert networkx to torch]
     data = from_networkx(self.G)
-    data.x = torch.tensor(node_matrix, dtype=torch.float)
-    data.edge_attr = torch.tensor(edge_matrix, dtype=torch.float)
-    data.y = torch.tensor(class_list)
-    data.new_edge_attr = []
-    # data.new_x  = []
+    data.x = torch.tensor(node_matrix, dtype=torch.float)         # node feature matrix
+    data.y = torch.tensor(class_list)                             # edge label
+    data.edge_index = torch.tensor(edges_list)                    # edges
+    data.edge_attr = torch.tensor(edge_matrix, dtype=torch.float) # edge feature matrix
+    data.new_x = []                                               # block embedding (edge attr + src_node_attr + tar_node_attr)
+    data.new_edge_index = []
+
+    # build edge embedding
     for i in range(data.edge_index.shape[1]):
-      from_node = data.edge_index[0][i]
-      to_node = data.edge_index[1][i]
-      data.new_edge_attr.append(torch.cat((data.edge_attr[i], data.x[from_node], data.x[to_node]), -1))
-    data.new_edge_attr = torch.stack((data.new_edge_attr))
-    #data.nodes = torch.tensor(list(self.G.nodes))
-    # crap torch geometrics, need to build your own node feature matrix
+      from_node = edges_list[0][i]
+      to_node = edges_list[1][i]
+      # add current posisiton as an attribute to original graph (it should not be held)
+      self.G[from_node][to_node]['ind_in_edge_list'] = i
+      data.new_x.append(torch.cat((data.edge_attr[i], data.x[from_node], data.x[to_node]), -1))
+    data.new_x = torch.stack((data.new_x))
+
+    new_edge_index = [[],[]]
+    # data.new_edge_index = []
+    for i in range(data.edge_index.shape[1]):
+      to_node = edges_list[1][i] # get target node
+      # loop over all `connected edges`
+      for edge in list(self.G.out_edges(to_node)):
+        # from which position in edge_list
+        from_ = i
+        # to which posistion in edge_list
+        to_ = self.G[edge[0]][edge[1]]['ind_in_edge_list']
+        new_edge_index[0].append(from_)
+        new_edge_index[1].append(to_)
+    data.new_edge_index = torch.tensor(new_edge_index)
+    # print(f'This is new_edge_index {new_edge_index}')
     return data
 
 
