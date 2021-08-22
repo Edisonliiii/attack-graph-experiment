@@ -61,6 +61,7 @@ class GraphGenerator:
     print("\nTest Basic Information......")
     print("\nNodes: ", self.G.nodes(data=True))
     print("\nEdges ", self.G.edges(data=True))
+    print("\nGraph: ", self.G.graph)
     print("\n----------------DEBUG END----------------")
 
   def torch_debug(self, data: Data) -> None:
@@ -139,10 +140,8 @@ class GraphGenerator:
       [Return]
         should be a list of G(nx graph)
     """
-    path = "./data/train/"
-    for filename in os.listdir(path):
-      if filename.endswith(".gml"):  # read out graph
-        self.G = nx.read_gml(os.path.join(path, filename), label="label", destringizer=int)
+    self.G = nx.read_gml(path, label="label", destringizer=int)
+    self.layer_sizes = self.G.graph['layer_sizes']
         # G_tmp = nx.read_gml(os.path.join(path, filename), label="label")
         # This part should not be delete untile config draw_after_read()
         # pos_tmp = nx.multipartite_layout(G_tmp, subset_key="layer")
