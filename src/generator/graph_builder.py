@@ -1,6 +1,8 @@
 # essential
 import os
 import sys
+import networkx
+from networkx.classes import graph
 import numpy as np
 from random import randint
 sys.path.insert(1, '../utility')
@@ -65,14 +67,29 @@ def read_data_from_dataset(dataset_type: str) -> list:
       dataset.append(new_data)
   return dataset
 
-# algorithm_5------------------------------------------------------------------------------------------
-layer_sizes = np.random.randint(20000, 30000, size=5).tolist()
+# algorithm_5 workspace------------------------------------------------------------------------------------------
+layer_sizes = np.random.randint(2, 3, size=10).tolist()
 layer_sizes.append(1)  # always end with 1 which means AD
 graph_gen = GraphGenerator(layer_sizes)
-graph_gen.struct_graph(nonjump_percentage=0.9, outgoing_lower_bound=6,
-                       outgoing_upper_bound=9, blockable_percentage=0.4)
-# graph_gen.draw_graph()
+graph_gen.struct_graph(nonjump_percentage=0.6, outgoing_lower_bound=2,
+                       outgoing_upper_bound=4, blockable_percentage=0.4)
+graph_gen.draw_graph()
+graph_gen.graph_debug()
 graph_gen.algorithm_5()
+# for entry in graph_gen.entries:
+#   print("-- ** ", networkx.shortest_path(graph_gen.get_graph(), entry, graph_gen.DA))
+# new NN---------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
 
 # TORCH------------------------------------------------------------------------------------------------
 # class Net(torch.nn.Module):
