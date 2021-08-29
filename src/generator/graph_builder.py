@@ -68,18 +68,31 @@ def read_data_from_dataset(dataset_type: str) -> list:
   return dataset
 
 # algorithm_5 workspace------------------------------------------------------------------------------------------
-layer_sizes = np.random.randint(2, 3, size=10).tolist()
+layer_sizes = np.random.randint(2, 3, size=5).tolist()
 layer_sizes.append(1)  # always end with 1 which means AD
-graph_gen = GraphGenerator(layer_sizes)
+graph_gen = GraphGenerator(layer_sizes, 10)
 graph_gen.struct_graph(nonjump_percentage=0.6, outgoing_lower_bound=2,
-                       outgoing_upper_bound=4, blockable_percentage=0.4)
-graph_gen.draw_graph()
-graph_gen.graph_debug()
+                       outgoing_upper_bound=6, blockable_percentage=0.4)
+# graph_gen.draw_graph()
+# graph_gen.graph_debug()
 graph_gen.algorithm_5()
 # for entry in graph_gen.entries:
 #   print("-- ** ", networkx.shortest_path(graph_gen.get_graph(), entry, graph_gen.DA))
 # new NN---------------------------------------------------------------------------------------------------------
-
+"""
+training process:
+1. ground truth: get before every turn of traing
+                 randomly change taken edge incident from node and update the performance
+                 [performance]: larger average stp
+2. training process:
+   1. input a batch of blocks (L_node+edges+R_node)
+   2. pass through NN
+   3. get output, compare with the ground truth we got
+      calculate loss, keep training, minimise the loss
+      change any one edge class we already TAKEN, and update ground truth according to its performance
+      that means, our module will keep converging
+   4. new cycle, keep training
+"""
 
 
 
