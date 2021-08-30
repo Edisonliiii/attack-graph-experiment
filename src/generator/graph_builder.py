@@ -68,11 +68,11 @@ def read_data_from_dataset(dataset_type: str) -> list:
   return dataset
 
 # algorithm_5 workspace------------------------------------------------------------------------------------------
-layer_sizes = np.random.randint(2, 3, size=5).tolist()
+layer_sizes = np.random.randint(2000, 3000, size=5).tolist()
 layer_sizes.append(1)  # always end with 1 which means AD
 graph_gen = GraphGenerator(layer_sizes, 10)
 graph_gen.struct_graph(nonjump_percentage=0.6, outgoing_lower_bound=2,
-                       outgoing_upper_bound=6, blockable_percentage=0.4)
+                       outgoing_upper_bound=5, blockable_percentage=0.4)
 # graph_gen.draw_graph()
 # graph_gen.graph_debug()
 graph_gen.algorithm_5()
