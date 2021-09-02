@@ -92,8 +92,8 @@ class GraphGenerator:
     self.entries = []
     self.taken = {}
     self.not_taken = {}
-    self.blockable_edges = []
-    self.blocked_edges = []                    # chosen blocked blockable edges
+    self.blockable = []
+    self.blocked = []                    # chosen blocked blockable edges
     # in_degree & out_degree hasn't been updated yet
     # but they are in attribtue matrix now
     self.nodes_attributes = ['layer', 'in_degree', 'out_degree', 'stp_from_entries', 'stp_to_da']
@@ -112,6 +112,9 @@ class GraphGenerator:
     print("\nNodes: ", self.G.nodes(data=True))
     print("\nEdges ", self.G.edges(data=True))
     print("\nGraph: ", self.G.graph)
+    print(f'\n******* G total number of NOTTAKEN edges {len(self.edge_filter("class", EDGE_CLASS.NOTTAKEN.value))}')
+    print(f'\n******* G total number of TAKEN edges {len(self.edge_filter("class", EDGE_CLASS.TAKEN.value))}')
+    print(f'\n******* G total number of blocked_edges {len(self.blocked)}')
     print("\n----------------DEBUG END----------------")
 
   def torch_debug(self, data: Data) -> None:
@@ -120,22 +123,22 @@ class GraphGenerator:
     """
     # data structure
     print(f'Data structure:\n {data}')
-    # # node feature
-    # print(f'[torch_debug](Node feature)data.x:\n {data.x}')
-    # # edge classes
-    # print(f'[torch_debug](Edge Classes)data.y:\n {data.y}')
-    # # edges
-    # print(f'[torch_debug](Edges)data.edge_index:\n {data.edge_index}')
-    # # edge features
-    # print(f'[torch_debug](Edge Feature)data.edge_attr:\n {data.edge_attr}')
-    # # block features
-    # print(f'[torch_debug](Block Feature)data.new_x:\n {data.new_x}')
+    # node feature
+    print(f'[torch_debug](Node feature)data.x:\n {data.x}')
+    # edge classes
+    print(f'[torch_debug](Edge Classes)data.y:\n {data.y}')
+    # edges
+    print(f'[torch_debug](Edges)data.edge_index:\n {data.edge_index}')
+    # edge features
+    print(f'[torch_debug](Edge Feature)data.edge_attr:\n {data.edge_attr}')
+    # block features
+    print(f'[torch_debug](Block Feature)data.new_x:\n {data.new_x}')
 
   def get_graph(self) -> nx.DiGraph():
     return self.G
 
   def get_blockable_edges(self) -> list:
-    return self.blockable_edges
+    return self.blockable
 
   def get_entries(self) -> list:
     return self.entries
@@ -149,13 +152,13 @@ class GraphGenerator:
     """
     if G==None:
       G = self.G
-    if edge_type == -1:
+    if attr == 'blockable':
       el = list(G.edges())
-    else:
-      el = list(self.edge_filter('class', edge_type))
+    elif attr == 'class' and edge_type != -1:
+      el = list(self.edge_filter(attr, edge_type))
 
     # configure drawing parameters
-    edge_color = [G[u][v][attr]
+    edge_color = [G[u][v]['blockable']
                   for u, v in el]  # draw according to blockable or not
     # determine position as multipartite graph
     # 'layer' is fixed here!
@@ -203,7 +206,7 @@ class GraphGenerator:
         self.G
         self.layer_sizes
         self.DA
-        self.blockable_edges
+        self.blockable
         self.entries
 
       [Parameters]
@@ -214,20 +217,20 @@ class GraphGenerator:
     """
     self.G = nx.read_gml(path, label="label", destringizer=int)
     self.layer_sizes = self.G.graph['layer_sizes']
-        # G_tmp = nx.read_gml(os.path.join(path, filename), label="label")
-        # This part should not be delete untile config draw_after_read()
-        # pos_tmp = nx.multipartite_layout(G_tmp, subset_key="layer")
-        # nx.draw(G_tmp, pos_tmp,
-        #         with_labels=True,
-        #         node_size=5,
-        #         connectionstyle="arc3,rad=-0.2",
-        #         edge_color=[G_tmp[u][v]['blockable'] for u, v in G_tmp.edges],
-        #         width=1,
-        #         font_size=10)
-        # print(os.path.join(path, filename))
-        # print(G_tmp.nodes(data=True))
-        # print(G_tmp.edges(data=True))
-        # plt.show()
+    # G_tmp = nx.read_gml(os.path.join(path, filename), label="label")
+    # This part should not be delete untile config draw_after_read()
+    # pos_tmp = nx.multipartite_layout(G_tmp, subset_key="layer")
+    # nx.draw(G_tmp, pos_tmp,
+    #         with_labels=True,
+    #         node_size=5,
+    #         connectionstyle="arc3,rad=-0.2",
+    #         edge_color=[G_tmp[u][v]['blockable'] for u, v in G_tmp.edges],
+    #         width=1,
+    #         font_size=10)
+    # print(os.path.join(path, filename))
+    # print(G_tmp.nodes(data=True))
+    # print(G_tmp.edges(data=True))
+    # plt.show()
 
   def store_graph(self, type: str) -> None:
     """
@@ -271,19 +274,35 @@ class GraphGenerator:
     return
 
   def fetch_edges_from_ori_graph(self, edges: list) -> list:
+    """
+    return all edge with attributes from ori graph
+    """
     ori_edge = []
     for edge in edges:
       ori_edge.append((edge[0], edge[1], self.ori_G[edge[0]][edge[1]]))
-    print(f'\nori_edge {ori_edge}')
+    print(f'ori_edge: {ori_edge}')
     return ori_edge
 
   def edge_status_change(self, edge: tuple, _from: str, _to: str) -> None:
     if _from == 'taken':
       self.taken.remove(edge)
       self.not_taken.append(edge)
+      self.G[edge[0]][edge[1]]['class'] = EDGE_CLASS.NOTTAKEN.value
     elif _from == 'not_taken':
       self.not_taken.remove(edge)
       self.taken.append(edge)
+      self.G[edge[0]][edge[1]]['class'] = EDGE_CLASS.TAKEN.value
+    elif _from == 'blocked':
+      self.blocked.remove(edge)
+      self.blockable.append(edge)
+      self.G[edge[0]][edge[1]]['class'] = EDGE_CLASS.NOTTAKEN.value
+      self.G[edge[0]][edge[1]]['blockable'] = True
+    elif _from == 'blockable':
+      self.blockable.remove(edge)
+      self.blocked.append(edge)
+      self.G[edge[0]][edge[1]]['class'] = EDGE_CLASS.BLOCKED.value
+      self.G[edge[0]][edge[1]]['blockable'] = False
+
 
   def edge_filter(self, *attr_pairs:list, G: nx.DiGraph = None, src: int = None, dst: int = None) -> list:
     """
@@ -386,8 +405,8 @@ class GraphGenerator:
     self.add_new_attributes('edges', 'class', EDGE_CLASS.NOTTAKEN.value)
     self.add_new_attributes('edges', 'average_sr', 0)
     
-    self.__set_entries()
-    self.__set_blockable()
+    # self.__set_entries()
+    # self.__set_blockable()
     # self.__set_connected_entries()
     self.ori_G = self.G.copy()
 
@@ -408,14 +427,14 @@ class GraphGenerator:
     """
     set blockable edges
     """
-    self.blockable_edges = self.edge_filter('blockable', True)
+    self.blockable = self.edge_filter('blockable', True)
 
   def __set_connected_entries(self):
     """
     set connected_entries
     set linkable edges (Here, we only calculate the blockable edges)
     """
-    for edge in self.blockable_edges:
+    for edge in self.blockable:
       self.G[edge[0]][edge[1]]['connected_entries'] = len(self.linkable_entries(edge))
 
   def __set_to_da(self, node: int):
@@ -566,7 +585,7 @@ class GraphGenerator:
       best performance block choice
       best stp
     """
-    if budget > len(self.blockable_edges):
+    if budget > len(self.blockable):
       print("[WARNING]: budget should never larger than the number of blockable edges!")
       exit(1)
     # store status
@@ -575,7 +594,7 @@ class GraphGenerator:
     worst_block_choices = []
     worst_stps = []
     for i in range(epoch):
-      blocked_edges = random.sample(self.blockable_edges, budget)
+      blocked_edges = random.sample(self.blockable, budget)
       print("\nTest blocked edges: ", blocked_edges)
       self.G.remove_edges_from(blocked_edges)
       total_sr, stps = self.graph_utility(0.6)
@@ -597,7 +616,7 @@ class GraphGenerator:
     all edges initialized as NOT_TAKEN
     """
     # always cut .5 of all blockable edges
-    num_of_cutted_edges = (int)(len(self.blockable_edges)/2)
+    num_of_cutted_edges = (int)(len(self.blockable)/2)
     blocked, taken = self.__cut_strategy(num_of_cutted_edges, 1000)
     for edge in blocked:
       self.G[edge[0]][edge[1]]['class'] = EDGE_CLASS.BLOCKED.value
@@ -695,14 +714,14 @@ class GraphGenerator:
     Here, we use self.entries, because it has been updated and
     it is aligned with simple tree
 
-    will update self.blocked_edges
+    will update self.blocked
     :parameter
       budget: budget left from the Step 1(first classification)
       G: cutted simple tree
     """
     if G == None:
       G = self.G
-    # print(f'simple tree debug: self.blockable_edges {G.edges(data=True)}')
+    # print(f'simple tree debug: self.blockable {G.edges(data=True)}')
     for (node, value) in G.out_degree():
       if value > 1:
         print("this is not a simple tree.")
@@ -753,7 +772,8 @@ class GraphGenerator:
       worthiest_edge = maxh.heappop()
       if G.has_edge(worthiest_edge[0], worthiest_edge[1]) == False:
         continue
-      self.blocked_edges.append(worthiest_edge)
+      self.blockable.remove(worthiest_edge)
+      self.blocked.append(worthiest_edge)
       cut_branch = list(nx.edge_dfs(
           G, worthiest_edge[0], orientation='reverse'))
       cut_branch.append(worthiest_edge)
@@ -806,29 +826,23 @@ class GraphGenerator:
     #           cut all isolated nodes
     #           directly cut from self.G
     self.__cut_from_root()
-    print(self.G)
+    self.draw_graph()
     # [Step 1:] cut the graph to simple tree
     #           make a subgraph deep copy from self.G
     #           self.G not changed on this step
     #[DEBUG]
-    # print('\nBefore Step 1, original graph is: ')
-    # print(f'All blockable edges: {self.edge_filter("blockable", True)}')
-    # self.draw_graph()
+    print(self.G.edges)
+    print(self.G.nodes)
     self.__set_entries()         # update left entries
-    # picked_nodes:set = set({}) # taken nodes
-    on_hold_edges = []           # taken edges
-
+    self.__set_blockable()
     # iter over all entry points
     # for each entry point, DFS to DA
     # randomly pick any forwarding edge from the current node, it should iter over all of them
     for entry in self.entries:
       dst = entry # setup entry node
-      # picked_nodes.add(dst)
       while dst != self.DA: # DFS reaching DA
         # randomly taken one from out_degree
         out_edges = list(self.G.edges(dst)) # get out edges
-        # if len(out_edges) == 0: # no outdegree, break
-        #   break
         taken = random.choice(out_edges)    # randomly pick one
         # make sure there is only one out-edge is taken for each node
         # label the taken edge as TAKEN
@@ -839,69 +853,57 @@ class GraphGenerator:
             break
         self.G[taken[0]][taken[1]]['class']=EDGE_CLASS.TAKEN.value
         dst = taken[1] # update dst
-    on_hold_edges = self.edge_filter('class', EDGE_CLASS.TAKEN.value) # temparaly write it down all taken edges as simple tree
-    simple_tree = self.G.edge_subgraph(on_hold_edges).copy() # has to be deep copy
+    self.__set_taken() # update self.taken
+    simple_tree = self.G.edge_subgraph(self.taken).copy() # has to be deep copy
     
     # [DEBUG]
-    # print(f'******* G total number of simple_tree edges {simple_tree.number_of_edges()}')
-    # print('After walking through...', nx.get_edge_attributes(self.G, "class"))
-    # print('Taken edges: ', on_hold_edges)
-    # print('Taken nodes: ', picked_nodes)
-    # print(simple_tree.nodes(data=True))
-    # print(simple_tree.edges(data=True))
     print('\nOriginal graph after Step 1: ')
+    print(f'All blockable: {len(self.blockable)}')
     # self.draw_graph()
-    print('\nTest utility on ori graph: ===== ', self.graph_utility()[0])
+    print('Test utility on ori graph: ===== ', self.graph_utility()[0])
+
     print('\nSimple cutted tree after Step 1: ')
     # self.draw_graph(G=simple_tree)
-    print('\nTest utility on simple tree: ===== ',
-    self.graph_utility(G=simple_tree)[0])
+    print('Test utility on simple tree: ===== ',
+      self.graph_utility(G=simple_tree)[0])
     
     # get taken blockable edges from simple tree
     filter_conditions = ['class', EDGE_CLASS.TAKEN.value, 'blockable', True]
     taken_blockable_edges = self.edge_filter(*filter_conditions, G=simple_tree)
-    # print(f'\nTaken blockable edges in tree {taken_blockable_edges}')
-
-    # before getting into [Step 2], spend budget (randomly for now, will add heuristic)
-    # print('\nTest utility on ori graph: ===== ', self.graph_utility())
-    # print('\nTest utility on simple tree: ===== ',
-    #       self.graph_utility(G=simple_tree))
     
     # [Step 2]: simple tree, use rest of the budget to pick blockable edges (all in for algorithm_1)
     budget_cost_on_second_classification = min(len(taken_blockable_edges), self.budget)
-    # print(f"budget_cost_on_second_classification: \
-    #   {budget_cost_on_second_classification}")
     
-    # run algorithm_1, self.blocked_edges will be updated
+    # run algorithm_1, self.blocked will be updated
     self.algorithm_1(budget=budget_cost_on_second_classification, G=simple_tree)
-    # print(f'\nBlocked_edges in second classification: {self.blocked_edges}')
-    self.edge_setter(on_hold_edges, 'class', EDGE_CLASS.NOTTAKEN.value) # recover it
-    self.G.remove_edges_from(self.blocked_edges) # remove all blocked blockable edges chosen by algorithm 1
-    #self.__set_taken()
-    #self.__set_not_taken()
-    #self.__cut_from_root()
-    self.__set_taken()
-    self.__set_not_taken()
+    self.edge_setter(self.taken, 'class', EDGE_CLASS.NOTTAKEN.value) # recover it
+    rest_budget = self.budget - len(self.blocked)
+    if rest_budget > 0:
+      for edge in random.sample(self.blockable, min(rest_budget,len(self.blockable))):
+        self.blocked.append(edge)
+        self.blockable.remove(edge)
+    print('-----', len(self.blocked) + len(self.blockable))
+    self.G.remove_edges_from(self.blocked) # remove all blocked blockable edges chosen by algorithm 1
     performance, stp_after_algorithm1 = self.graph_utility()  # check performance
     for stp in stp_after_algorithm1:  # label best performance as taken
       self.edge_setter(stp, 'class', EDGE_CLASS.TAKEN.value)
+    self.__set_taken()
+    self.__set_not_taken()
     print(f'\n//////// Final utility: {performance}')
-    # self.draw_graph()
-    # self.draw_graph(attr='class')
-    # self.draw_graph(attr='class', edge_type=EDGE_CLASS.TAKEN.value)
+
+    # print(self.blockable)
+    # print(self.G.nodes(data=True))
+    # print(self.G.number_of_nodes())
     self.G.add_edges_from(self.fetch_edges_from_ori_graph(
-        self.blocked_edges))  # recover removed edges
-    print(self.G)
-    # self.edge_setter(self.blockable_edges, 'blockable', True)
+        self.blocked))  # recover removed edges
+    self.draw_graph('class', EDGE_CLASS.TAKEN.value)
     # self.draw_graph()
-    # self.test_draw()
-    # print(f'//////// Final stp: {stp_after_algorithm1}')
-    # print('\nTest utility on cutted ori graph: ===== ', self.graph_utility())
-    # print(f'******* G total number of edges {self.G.number_of_edges()}')
-    print(f'******* G total number of NOTTAKEN edges {len(self.edge_filter("class", EDGE_CLASS.NOTTAKEN.value))}')
-    print(f'******* G total number of TAKEN edges {len(self.edge_filter("class", EDGE_CLASS.TAKEN.value))}')
-    # print(f'******* G total number of on_hold_edges {len(on_hold_edges)}')
-    # print(f'******* G total number of blocked_edges {len(self.blocked_edges)}')
+    # print(self.blockable)
+    # print(self.G.nodes(data=True))
+    # print(self.G.number_of_nodes())
+    # print(len(nx.get_node_attributes(self.G, 'layer')))
+    # print(self.G.number_of_nodes())
+    # print(self.G)
 
 
   def edge_tremble(self, picked_edge: tuple) -> None:
