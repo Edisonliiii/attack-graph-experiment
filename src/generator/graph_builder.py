@@ -18,6 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch_geometric.nn as tg_nn
 from torch_geometric.data import DataLoader
+import networkx as nx
 
 #[HOW TO CREATE NEW DATASET]
 def create_dataset(dataset_type: str, num_graph: int, num_layer: int, lower_bound: int, upper_bound: int) -> None:
@@ -68,11 +69,12 @@ def read_data_from_dataset(dataset_type: str) -> list:
   return dataset
 
 # algorithm_5 workspace------------------------------------------------------------------------------------------
-layer_sizes = np.random.randint(2, 3, size=5).tolist()
+layer_sizes = np.random.randint(3, 4, size=5).tolist()
 layer_sizes.append(1)  # always end with 1 which means AD
-graph_gen = GraphGenerator(layer_sizes, budget=50)
-graph_gen.struct_graph(nonjump_percentage=0.6, outgoing_lower_bound=2,
-                       outgoing_upper_bound=5, blockable_percentage=0.4)
+graph_gen = GraphGenerator(layer_sizes, budget=5)
+graph_gen.struct_graph(nonjump_percentage=0.6, outgoing_lower_bound=3,
+                       outgoing_upper_bound=4, blockable_percentage=0.4)
+
 # graph_gen.draw_graph()
 # graph_gen.graph_debug()
 graph_gen.algorithm_5()
